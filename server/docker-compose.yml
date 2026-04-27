@@ -1,0 +1,63 @@
+services:
+
+  # 1. RabbitMQ (MQTT 브로커)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: scada-rabbitmq
+    ports:
+      - "1883:1883"
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - scada-net
+    restart: always
+
+  # 2. PostgreSQL (데이터베이스)
+  postgres:
+    image: postgres:15
+    container_name: scada-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - scada-net
+    restart: always
+
+  # 3. FastAPI (서버 뼈대)
+  fastapi:
+    build:
+      context: ./fastapi
+    container_name: scada-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+    depends_on:
+      - rabbitmq
+      - postgres
+    networks:
+      - scada-net
+    restart: always
+
+volumes:
+  rabbitmq_data:
+  postgres_data:
+
+networks:
+  scada-net:
+    driver: bridge
