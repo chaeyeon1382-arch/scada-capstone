@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCADA Monitor</title>
+<script src="config.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+KR:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0e14;
+    --panel: #0f1520;
+    --border: #1e2d42;
+    --accent: #00c8ff;
+    --accent2: #00ff9d;
+    --warn: #ff6b35;
+    --text: #c8d8e8;
+    --muted: #4a6080;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Noto Sans KR', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; }
+
+  
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 20px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .logo span { color: var(--muted); font-size: 13px; display: block; letter-spacing: 1px; margin-top: 2px; }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    margin-right: 6px;
+    transition: background 0.3s;
+  }
+  .dot.ok { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .dot.err { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+
+  #conn-label { color: var(--text); }
+
+  
+  #timestamp {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  
+  .api-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+    align-items: center;
+  }
+
+  .api-bar input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-bar input:focus { border-color: var(--accent); }
+
+  .api-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+ 
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  .card.green::before { background: var(--accent2); }
+  .card.warn::before { background: var(--warn); }
+
+  .card-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+
+  .card-value {
+    font-family: var(--mono);
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--accent);
+    margin-bottom: 6px;
+    transition: color 0.3s;
+  }
+
+  .card.green .card-value { color: var(--accent2); }
+
+  .card-unit {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .card-slave {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 8px;
+  }
+
+  
+  .fan-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fan-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--warn);
+    opacity: 0.5;
+  }
+
+  .fan-icon {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .fan-svg { width: 80px; height: 80px; }
+
+  .fan-svg.spinning { animation: spin 0.8s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .fan-info { flex: 1; }
+
+  .fan-info .card-label { margin-bottom: 6px; }
+
+  .fan-status {
+    font-family: var(--mono);
+    font-size: 24px;
+    margin-bottom: 6px;
+    transition: color 0.3s;
+  }
+
+  .fan-status.on { color: var(--accent2); }
+  .fan-status.off { color: var(--muted); }
+
+  .fan-slave { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .btn-group { display: flex; gap: 10px; margin-top: 16px; }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 1px;
+    padding: 10px 28px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-on {
+    background: transparent;
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  .btn-on:hover { background: var(--accent2); color: var(--bg); }
+  .btn-on:active { transform: scale(0.97); }
+
+  .btn-off {
+    background: transparent;
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  .btn-off:hover { background: var(--warn); color: var(--bg); }
+  .btn-off:active { transform: scale(0.97); }
+
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  
+  .log-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .log-title { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; font-family: var(--mono); }
+
+  .btn-clear {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .btn-clear:hover { border-color: var(--muted); color: var(--text); }
+
+  #log {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-entry { display: flex; gap: 12px; }
+  .log-time { color: var(--border); flex-shrink: 0; }
+  .log-msg { color: var(--text); }
+  .log-msg.ok { color: var(--accent2); }
+  .log-msg.err { color: var(--warn); }
+  .log-msg.info { color: var(--accent); }
+
+  
+  .refresh-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .btn-refresh {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 18px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  .auto-label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .flash { animation: flash 0.4s ease; }
+  @keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  
+  <header>
+    <div class="logo">
+      SCADA
+      <span>Remote Monitoring & Control System</span>
+    </div>
+    <div class="status-bar">
+      <span><span class="dot" id="conn-dot"></span><span id="conn-label">연결 확인 중...</span></span>
+      <span id="timestamp">--:--:--</span>
+    </div>
+  </header>
+
+  
+  <div class="api-bar">
+    <label>API 주소</label>
+    <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000">
+    <label>Slave ID (센서)</label>
+    <input type="number" id="slave-sensor" value="1" style="width:70px">
+    <label>Slave ID (릴레이)</label>
+    <input type="number" id="slave-relay" value="2" style="width:70px">
+  </div>
+
+  
+  <div class="refresh-row">
+    <button class="btn-refresh" onclick="fetchSensor()">↻ 조회</button>
+    <span class="auto-label">자동 갱신</span>
+    <select id="interval-select" onchange="setAutoRefresh()">
+      <option value="0">OFF</option>
+      <option value="3000">3초</option>
+      <option value="5000" selected>5초</option>
+      <option value="10000">10초</option>
+    </select>
+  </div>
+
+  
+  <div class="grid">
+    <div class="card warn">
+      <div class="card-label">온도 · Temperature</div>
+      <div class="card-value" id="temp-val">--<span class="card-unit">°C</span></div>
+      <div class="card-slave" id="temp-slave">slave_id: -</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">습도 · Humidity</div>
+      <div class="card-value" id="hum-val">--<span class="card-unit">%</span></div>
+      <div class="card-slave" id="hum-slave">slave_id: -</div>
+    </div>
+  </div>
+
+  
+  <div class="fan-card">
+    <div class="fan-icon">
+     
+      <svg class="fan-svg" id="fan-icon" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="40" cy="40" r="38" stroke="#1e2d42" stroke-width="1.5"/>
+        <path d="M40 40 C40 25, 55 18, 62 26 C69 34, 55 40, 40 40Z" fill="#4a6080" opacity="0.8"/>
+        <path d="M40 40 C55 40, 62 55, 54 62 C46 69, 40 55, 40 40Z" fill="#4a6080" opacity="0.8"/>
+        <path d="M40 40 C40 55, 25 62, 18 54 C11 46, 25 40, 40 40Z" fill="#4a6080" opacity="0.8"/>
+        <path d="M40 40 C25 40, 18 25, 26 18 C34 11, 40 25, 40 40Z" fill="#4a6080" opacity="0.8"/>
+        <circle cx="40" cy="40" r="6" fill="#0f1520" stroke="#1e2d42" stroke-width="1.5"/>
+        <circle cx="40" cy="40" r="3" fill="#4a6080"/>
+      </svg>
+    </div>
+    <div class="fan-info">
+      <div class="card-label">팬 제어 · Relay Control</div>
+      <div class="fan-status off" id="fan-status">OFF</div>
+      <div class="fan-slave" id="fan-slave">slave_id: -</div>
+      <div class="btn-group">
+        <button class="btn btn-on" onclick="controlRelay('on')">▶ ON</button>
+        <button class="btn btn-off" onclick="controlRelay('off')">■ OFF</button>
+      </div>
+    </div>
+  </div>
+
+ 
+  <div class="log-card">
+    <div class="log-header">
+      <span class="log-title">통신 로그 · Communication Log</span>
+      <button class="btn-clear" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+<script>
+let autoTimer = null;
+let fanState = false;
+
+
+function tick() {
+  const now = new Date();
+  document.getElementById('timestamp').textContent =
+    now.toLocaleTimeString('ko-KR', {hour12: false});
+}
+setInterval(tick, 1000); tick();
+
+
+function log(msg, type='') {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('ko-KR', {hour12: false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  el.prepend(entry);
+  if (el.children.length > 60) el.lastChild.remove();
+}
+
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+
+function setConn(ok, msg) {
+  document.getElementById('conn-dot').className = 'dot ' + (ok ? 'ok' : 'err');
+  document.getElementById('conn-label').textContent = msg;
+}
+
+// API URL
+function apiUrl() {
+  return (document.getElementById('api-url').value || 'http://localhost:8000').replace(/\/$/, '');
+}
+function slaveId(type) {
+  return parseInt(document.getElementById(type === 'sensor' ? 'slave-sensor' : 'slave-relay').value) || (type === 'sensor' ? 1 : 2);
+}
+
+
+async function fetchSensor() {
+  const sid = slaveId('sensor');
+  const url = `${apiUrl()}/sensor/${sid}`;
+  log(`GET ${url}`, 'info');
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+
+  
+    // 형식: { "slave_id": 1, "timestamp": "...", "data": { "temperature": 24.5, "humidity": 61.2 } }
+    const temp = data?.data?.temperature ?? data?.temperature ?? null;
+    const hum  = data?.data?.humidity    ?? data?.humidity    ?? null;
+    const sid2 = data?.slave_id ?? sid;
+    const ts   = data?.timestamp ?? '';
+
+    document.getElementById('temp-val').innerHTML =
+      temp !== null ? `${temp}<span class="card-unit">°C</span>` : `--<span class="card-unit">°C</span>`;
+    document.getElementById('hum-val').innerHTML =
+      hum  !== null ? `${hum}<span class="card-unit">%</span>`  : `--<span class="card-unit">%</span>`;
+    document.getElementById('temp-slave').textContent = `slave_id: ${sid2}  ${ts}`;
+    document.getElementById('hum-slave').textContent  = `slave_id: ${sid2}`;
+
+    
+    document.getElementById('temp-val').classList.add('flash');
+    document.getElementById('hum-val').classList.add('flash');
+    setTimeout(() => {
+      document.getElementById('temp-val').classList.remove('flash');
+      document.getElementById('hum-val').classList.remove('flash');
+    }, 400);
+
+    setConn(true, 'API 연결됨');
+    log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
+
+  } catch(e) {
+    setConn(false, 'API 오류');
+    log(`오류: ${e.message}`, 'err');
+  }
+}
+
+
+async function controlRelay(action) {
+  const sid = slaveId('relay');
+  const url = `${apiUrl()}/control`;
+  const body = {
+    slave_id: sid,
+    timestamp: new Date().toISOString().replace('Z', '').slice(0, 19),
+    command: {
+      target: "relay",
+      action: action
+    }
+  };
+
+  log(`POST ${url}  action:${action}`, 'info');
+  log(`Body: ${JSON.stringify(body)}`);
+
+  
+  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    
+    fanState = (action === 'on');
+    const statusEl = document.getElementById('fan-status');
+    statusEl.textContent = fanState ? 'ON' : 'OFF';
+    statusEl.className = 'fan-status ' + (fanState ? 'on' : 'off');
+    document.getElementById('fan-slave').textContent = `slave_id: ${sid}`;
+
+  
+    const icon = document.getElementById('fan-icon');
+    icon.classList.toggle('spinning', fanState);
+
+    setConn(true, 'API 연결됨');
+    log(`릴레이 ${action.toUpperCase()} 성공`, 'ok');
+
+  } catch(e) {
+    setConn(false, 'API 오류');
+    log(`오류: ${e.message}`, 'err');
+  } finally {
+    document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+  }
+}
+
+
+function setAutoRefresh() {
+  clearInterval(autoTimer);
+  const ms = parseInt(document.getElementById('interval-select').value);
+  if (ms > 0) {
+    autoTimer = setInterval(fetchSensor, ms);
+    log(`자동 갱신 ${ms/1000}초 시작`, 'info');
+  } else {
+    log('자동 갱신 OFF');
+  }
+}
+
+
+function applyConfig() {
+  const env = CONFIG.get();
+  document.getElementById('api-url').value = env.api;
+  document.getElementById('slave-sensor').value = CONFIG.DEFAULT_SLAVE_SENSOR;
+  document.getElementById('slave-relay').value  = CONFIG.DEFAULT_SLAVE_RELAY;
+  document.getElementById('interval-select').value = CONFIG.DEFAULT_INTERVAL;
+
+ 
+  const badge = document.createElement('span');
+  badge.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--accent);margin-left:12px;';
+  badge.textContent = `[${env.label}]`;
+  document.querySelector('.logo').appendChild(badge);
+}
+
+
+applyConfig();
+setConn(false, '대기 중');
+log(`환경: ${CONFIG.get().label}  →  ${CONFIG.get().api}`, 'info');
+log('UI 시작 — [조회] 버튼을 눌러 센서 데이터를 불러오세요', 'info');
+setAutoRefresh();
+</script>
+</body>
+</html>

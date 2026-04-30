@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  ui:
+    image: nginx:alpine
+    container_name: scada-ui
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    restart: unless-stopped
