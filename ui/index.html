@@ -573,7 +573,7 @@ function slaveId(type) {
 
 async function fetchSensor() {
   const sid = slaveId('sensor');
-  const url = `${apiUrl()}/sensor/${sid}`;
+  const url = `${apiUrl()}/sensors/${sid}/data`;
   log(`GET ${url}`, 'info');
 
   try {
@@ -621,18 +621,10 @@ async function fetchSensor() {
 
 async function controlRelay(action) {
   const sid = slaveId('relay');
-  const url = `${apiUrl()}/control`;
-  const body = {
-    slave_id: sid,
-    timestamp: new Date().toISOString().replace('Z', '').slice(0, 19),
-    command: {
-      target: "relay",
-      action: action
-    }
-  };
+  const url = `${apiUrl()}/control/relay/${sid}`;
+  const body = { "action": action };
 
   log(`POST ${url}  action:${action}`, 'info');
-  log(`Body: ${JSON.stringify(body)}`);
 
   
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
