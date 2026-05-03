@@ -4,7 +4,7 @@ const CONFIG = {
   //   "local"  → 각자 docker compose up (localhost)
   //   "team"   → 모여서 작업시 (이재정 PC IP)
   //   "cloud"  → 발표·시연 
-  ENV: "local",
+  ENV: "cloud",
 
   
   ENDPOINTS: {
@@ -18,7 +18,7 @@ const CONFIG = {
     },
     cloud: {
       label: "클라우드 / 시연",
-      api:   "http://localhost:8000",   // 클라우드 주소로 교체 
+      api:   "http://34.47.100.119:8000",   // 클라우드 주소로 교체 
     },
   },
 
