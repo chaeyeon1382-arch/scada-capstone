@@ -20,7 +20,7 @@ class RelayCommand(BaseModel):
 
 
 def publish_mqtt(topic: str, payload: dict):
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.connect(MQTT_HOST, MQTT_PORT)
     client.publish(topic, json.dumps(payload))
