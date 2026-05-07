@@ -1,6 +1,45 @@
 # 센서 데이터 읽기 담당
-# 현재는 센서가 없어서 센서 값을 읽어오는 척하는 가짜 함수(데이터 수집 시뮬레이션) 
 
+# modbus_client.py
+from pymodbus.client import ModbusSerialClient
+
+class ModbusClientManager:
+    def __init__(self, port='/dev/tty.usbserial-10'): # 본인의 포트 경로 확인 필수
+        self.client = ModbusSerialClient(
+            port=port,
+            baudrate=9600,     # 제품 기본 전송 속도 
+            parity='N',        
+            stopbits=1,        
+            bytesize=8,        
+            timeout=1
+        )
+
+    def connect(self):
+        return self.client.connect()
+
+    # 센서 데이터 읽기 (ID: 1, 주소 0번부터 2개 <- 장치 매뉴얼 확인하기)
+    def read_sensor_data(self, slave_id=1):
+        # Function Code 03: Read Holding Registers
+        response = self.client.read_holding_registers(0, 2, slave=slave_id)
+        if not response.isError():
+            return response.registers
+        return None
+
+    # FAN 제어 (ID: 2, Channel: 0)
+    def control_fan(self, is_on, slave_id=2):
+        # Function Code 05: Write Single Coil
+        # 0xFF00은 ON , 0x0000은 OFF  명령
+        value = 0xFF00 if is_on else 0x0000
+        # 0번 채널에 쓰기 명령 전송 
+        response = self.client.write_coil(0, value, slave=slave_id)
+        return not response.isError()
+
+    def close(self):
+        self.client.close()
+
+
+
+"""
 import random
 
 class SensorReader:
@@ -27,6 +66,7 @@ class SensorReader:
         action = "ON" if value else "OFF"
         print(f"⚡ [Modbus 하드웨어 제어] 주소 {address}번 릴레이를 {action} 합니다.")
         # 나중에 실제 pymodbus 등을 쓸 때 여기에 client.write_coil()이 들어감
+"""
 
 """
  실제 장비로 교체 시 전기 신호 읽어 숫자로 바꿔야됨

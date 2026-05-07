@@ -6,22 +6,24 @@
 import paho.mqtt.client as mqtt
 import json
 import time
+from datetime import datetime
 
 class MQTTManager:
-    def __init__(self, reader, host="127.0.0.1", port=1883):     # 구현 시 host 부분 수정하기 (라즈베리파이가 찾아가야 되는 노트북의 IP 주소로)
+    def __init__(self, reader, host="34.47.100.119", port=1883):
+        # 하드웨어 제어를 위해 modbus_client를 연결
         self.reader = reader # 이제 여기서 modbus_client(reader)를 사용할 수 있음
         # 고유 ID 생성 및 클라이언트 초기화
         client_id = f"scada-gw-{int(time.time())}"
+
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
         self.host = host
         self.port = port
 
-        self.reader = reader
         
-        # 로그인 정보 설정
+        # rabbitmq 로그인 정보 설정
         self.client.username_pw_set("admin", "admin1234")
         
-        # 콜백 함수 연결 (이 부분이 에러의 원인이었습니다!)
+        # 콜백 함수 연결
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
@@ -42,22 +44,37 @@ class MQTTManager:
     # 서버에서 릴레이 제어 명령이 왔을 때 실행
     def on_message(self, client, userdata, msg):
         try:
-            # 데이터 해석
+            # 서버가 보낸 JSON 패키지 데이터 해석
             command_data = json.loads(msg.payload.decode()) # 서버가 보낸 JSON 패키지를 풂
             print(f"📥 [명령 수신] 내용: {command_data}")
             
-            # 수신된 명령에 따라 실제 하드웨어(reader) 제어
+            # JSON 구조에 따른 데이터 추출
+            slave_id = command_data.get("slave_id")
+             # 수신된 명령에 따라 실제 하드웨어(reader) 제어
             action = command_data.get("command", {}).get("action")
 
+
            # 릴레이 제어 (1개이므로 무조건 0번 고정)
+
             if action == "on":
-                self.reader.write_coil(0, True) # 실제 하드웨어 0번 핀(또는 주소) 작동
-                print("✅ 릴레이 ON")
+                # slave_id를 인자로 전달하여 해당 장치 제어
+                self.reader.control_fan(True, slave_id=slave_id)
+                print(f"✅ Slave {slave_id}: 릴레이 ON")
             elif action == "off":
-                self.reader.write_coil(0, False)
-                print("✅ 릴레이 OFF")
-            else:
-                print(f"⚠️ 알 수 없는 명령: {action}")
+                self.reader.control_fan(False, slave_id=slave_id)
+                print(f"✅ Slave {slave_id}: 릴레이 OFF")
+
+            """
+                if action == "on":
+                    # slave_id를 인자로 전달하여 해당 장치 제어
+                    self.reader.write_coil(0, True) # 실제 하드웨어 0번 핀(또는 주소) 작동
+                    print("✅ 릴레이 ON")
+                elif action == "off":
+                    self.reader.write_coil(0, False)
+                    print("✅ 릴레이 OFF")
+                else:
+                    print(f"⚠️ 알 수 없는 명령: {action}")
+            """
                 
         except Exception as e:
             print(f"❌ 명령 해석 오류: {e}")
@@ -66,19 +83,30 @@ class MQTTManager:
         try:
             self.client.connect(self.host, self.port, 60)
             self.client.loop_start() # 백그라운드 루프 시작
+            return True
         except Exception as e:
             print(f"❌ 초기 연결 실패: {e}")
+            return False
 
     def publish_sensor(self, slave_id, data):
         if not self.client.is_connected():
             print("⚠️ 연결 끊김: 전송을 건너뜁니다.")
             return
 
+        payload = {
+                "slave_id": slave_id,
+                "timestamp": datetime.now().isoformat(), # ISO 8601 형식
+                "data": {
+                    "temperature": temperature,
+                    "humidity": humidity
+                }
+            }
+        
         topic = f"scada/sensor/{slave_id}/data"
-        payload = json.dumps(data)
-        self.client.publish(topic, payload, qos=1)
-        print(f"📤 데이터 전송 성공 [{topic}]")
+        self.client.publish(topic, json.dumps(payload), qos=1)
+        print(f"📤 데이터 전송: {topic}")
 
-
-
+    def disconnect(self):
+        self.client.loop_stop()
+        self.client.disconnect()
 
