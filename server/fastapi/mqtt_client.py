@@ -22,8 +22,8 @@ def on_message(client, userdata, msg):
         payload = json.loads(msg.payload.decode())
         record = SensorData(
             slave_id=payload["slave_id"],
-            temperature=payload["data"]["temperature"],
-            humidity=payload["data"]["humidity"]
+            temperature=payload.get("temperature") or payload.get("data", {}).get("temperature"),
+            humidity=payload.get("humidity") or payload.get("data", {}).get("humidity")
         )
         db.add(record)
         db.commit()
