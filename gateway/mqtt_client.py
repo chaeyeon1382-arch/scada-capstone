@@ -88,21 +88,22 @@ class MQTTClientManager:
             print(f"❌ 초기 연결 실패: {e}")
             return False
 
-    def publish_sensor(self, slave_id, data):
+    def publish_sensor(self, slave_id, temp, hum):
         if not self.client.is_connected():
             print("⚠️ 연결 끊김: 전송을 건너뜁니다.")
             return
 
+        # main.py에서 넘겨받은 temp, hum 값을 실제 데이터로 사용합니다.
         payload = {
             "slave_id": slave_id,
-            "temperature": temp, # temp 인자를 사용
-            "humidity": hum,     # hum 인자를 사용
+            "temperature": temp, 
+            "humidity": hum,     
             "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         }
         
         topic = f"scada/sensor/{slave_id}/data"
         self.client.publish(topic, json.dumps(payload), qos=1)
-        print(f"📤 데이터 전송: {topic}")
+        print(f"📤 데이터 전송 성공: {topic} -> {payload}")
 
     def disconnect(self):
         self.client.loop_stop()
