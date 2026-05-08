@@ -8,7 +8,7 @@ import json
 import time
 from datetime import datetime
 
-class MQTTManager:
+class MQTTClientManager:
     def __init__(self, reader, host="34.47.100.119", port=1883):
         # 하드웨어 제어를 위해 modbus_client를 연결
         self.reader = reader # 이제 여기서 modbus_client(reader)를 사용할 수 있음
@@ -94,13 +94,11 @@ class MQTTManager:
             return
 
         payload = {
-                "slave_id": slave_id,
-                "timestamp": datetime.now().isoformat(), # ISO 8601 형식
-                "data": {
-                    "temperature": temperature,
-                    "humidity": humidity
-                }
-            }
+            "slave_id": slave_id,
+            "temperature": temp, # temp 인자를 사용
+            "humidity": hum,     # hum 인자를 사용
+            "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        }
         
         topic = f"scada/sensor/{slave_id}/data"
         self.client.publish(topic, json.dumps(payload), qos=1)
