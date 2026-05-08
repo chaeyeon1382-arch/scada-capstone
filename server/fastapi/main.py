@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routers import sensor, control
 from database import Base, engine
 from mqtt_client import start_mqtt
@@ -6,6 +7,13 @@ from mqtt_client import start_mqtt
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SCADA API Server")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(sensor.router)
 app.include_router(control.router)
