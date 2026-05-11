@@ -3,6 +3,7 @@
 # modbus_client.py
 from pymodbus.client import ModbusSerialClient
 
+
 class ModbusClientManager:
     def __init__(self, port='/dev/tty.usbserial-10'): # 본인의 포트 경로 확인 필수
         self.client = ModbusSerialClient(
@@ -17,16 +18,16 @@ class ModbusClientManager:
     def connect(self):
         return self.client.connect()
 
-    # 센서 데이터 읽기 (ID: 1, 주소 0번부터 2개 <- 장치 매뉴얼 확인하기)
-    def read_sensor_data(self, slave_id=1):
+    # 센서 데이터 읽기 (ID: 2, 주소 0번부터 2개 <- 장치 매뉴얼 확인하기)
+    def read_sensor_data(self, slave_id=2):
         # Function Code 03: Read Holding Registers
         response = self.client.read_holding_registers(0, 2, slave=slave_id)
         if not response.isError():
             return response.registers
         return None
 
-    # FAN 제어 (ID: 2, Channel: 0)
-    def control_fan(self, is_on, slave_id=2):
+    # FAN 제어 (ID: 1, Channel: 0)
+    def control_fan(self, is_on, slave_id=1):
         # Function Code 05: Write Single Coil
         # 0xFF00은 ON , 0x0000은 OFF  명령
         value = 0xFF00 if is_on else 0x0000

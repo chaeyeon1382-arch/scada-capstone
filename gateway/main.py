@@ -16,8 +16,8 @@ SIMULATION_MODE = True
 
 
 # 설정값
-SENSOR_ID = 1
-RELAY_ID = 2
+SENSOR_ID = 2
+RELAY_ID = 1
 CLOUD_IP = "34.47.100.119"
 
 def main():
