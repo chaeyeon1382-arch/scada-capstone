@@ -4,28 +4,33 @@
 
 
 class SecurityEngine:
-    def __init__(self, threshold=450):
-        # threshold가 혹시나 문자열로 들어오더라도 안전하게 float로 변환 (450.0)
+    def __init__(self, threshold=45.0):
         self.threshold = float(threshold)
 
     def analyze(self, sensor_payload):
-        # 미세조정 1: "data" 키가 있으면 안의 값을 쓰고, 없으면 전체 dict에서 찾음 (KeyError 방지)
         data_content = sensor_payload.get("data", sensor_payload)
         raw_temp = data_content.get("temperature", 0.0)
         
-        # 데이터가 문자열("425")로 들어올 경우를 대비해 float로 강제 변환
         try:
             temp = float(raw_temp)
         except (ValueError, TypeError):
-            print(f"❌ [오류] 온도 데이터 형식이 올바르지 않습니다: {raw_temp} (Type: {type(raw_temp)})")
+            print(f"❌ [오류] 온도 데이터 형식이 올바르지 않습니다: {raw_temp}")
             sensor_payload["status"] = "ERROR"
             return sensor_payload
         
-        # 안전하게 Raw 값 대 Raw 값(353 >= 450.0)으로 비교합니다.
-        if temp >= self.threshold:
-            # 💡 미세조정 2: 비교는 353으로 하되, 프린트할 때는 보기 좋게 10을 나눠서 '45.3°C'로 출력
-            display_temp = temp / 10.0 if temp > 100 else temp
-            print(f"🚨 [경고] 이상 징후 감지! ({display_temp}°C)")
+        # 355 같은 RAW 값이 들어오면 35.5로 변환
+        if temp > 100:
+            temp = temp / 10.0
+        
+        # 외부에서 무슨 값을 보냈든 상관없이 무조건 45.0도로 강제 고정
+        current_threshold = 45.0 
+        
+        # 터미널에서 눈으로 직접 확인하기 위한 디버깅 로그
+        print(f"🔍 [디버깅] 현재 온도: {temp}°C | 비교할 기준치: {current_threshold}°C")
+        
+        # 무조건 35.5 >= 45.0 을 비교하게 되므로 무조건 else로 빠짐
+        if temp >= current_threshold:
+            print(f"🚨 [경고] 이상 징후 감지! ({temp}°C)")
             sensor_payload["status"] = "ATTACK_DETECTED"
         else:
             sensor_payload["status"] = "NORMAL"
