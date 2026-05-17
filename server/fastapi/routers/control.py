@@ -23,7 +23,11 @@ def publish_mqtt(topic: str, payload: dict):
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.connect(MQTT_HOST, MQTT_PORT)
-    client.publish(topic, json.dumps(payload))
+    
+    # 수정부분: 데이터가 완전히 전송될 때까지 대기하는 안전장치 추가
+    msg_info = client.publish(topic, json.dumps(payload))
+    msg_info.wait_for_publish() # 전송 완료를 보장
+    
     client.disconnect()
 
 
