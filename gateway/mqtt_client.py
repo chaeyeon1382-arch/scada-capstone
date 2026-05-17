@@ -60,11 +60,11 @@ class MQTTClientManager:
 
            # 릴레이 제어 (1개이므로 무조건 0번 고정)
 
-            if action == "ON":
+            if action == "on":
                 # slave_id를 인자로 전달하여 해당 장치 제어
                 self.reader.control_fan(True, slave_id=slave_id)
                 print(f"✅ Slave {slave_id}: 릴레이 ON")
-            elif action == "OFF":
+            elif action == "off":
                 self.reader.control_fan(False, slave_id=slave_id)
                 print(f"✅ Slave {slave_id}: 릴레이 OFF")
 
