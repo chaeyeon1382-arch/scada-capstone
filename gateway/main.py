@@ -11,7 +11,7 @@ from modbus_client import ModbusClientManager
 
 
 # 시뮬레이션 모드 플래그 (하드웨어 -> False)
-SIMULATION_MODE = True
+SIMULATION_MODE = False
 
 
 
@@ -27,6 +27,10 @@ def main():
     # MQTT 매니저 생성 시 modbus 객체를 넘겨줌 (서버 명령 수행을 위해)
     mqtt_mg = MQTTClientManager(reader=modbus, host=CLOUD_IP)
 
+
+    security = SecurityEngine(threshold=30.0)
+
+
     # 시뮬레이션 모드가 아닐 때만 실제 연결 시도
     if not SIMULATION_MODE:
         if not modbus.connect():
@@ -34,6 +38,7 @@ def main():
             return
     
     mqtt_mg.connect()
+    time.sleep(2) # 연결 안정화 대기
     #mqtt_mg.loop_start()
 
     try:
@@ -49,6 +54,11 @@ def main():
                     temp, hum = data[0]/10, data[1]/10
                 else:
                     continue
+
+
+            payload = {"data": {"temperature": temp, "humidity": hum}}
+            result = security.analyze(payload)
+            print(f"🔒 보안 상태: {result['status']}")        
 
             mqtt_mg.publish_sensor(slave_id=SENSOR_ID, temp=temp, hum=hum)
             time.sleep(5)
