@@ -43,6 +43,7 @@ class MQTTClientManager:
 
     # 서버에서 릴레이 제어 명령이 왔을 때 실행
     def on_message(self, client, userdata, msg):
+        print(f"📥 RAW 수신: {msg.topic} -> {msg.payload}")
         try:
             # 서버가 보낸 JSON 패키지 데이터 해석
             command_data = json.loads(msg.payload.decode()) # 서버가 보낸 JSON 패키지를 풂
@@ -54,13 +55,16 @@ class MQTTClientManager:
             action = command_data.get("command", {}).get("action")
 
 
+            
+
+
            # 릴레이 제어 (1개이므로 무조건 0번 고정)
 
-            if action == "on":
+            if action == "ON":
                 # slave_id를 인자로 전달하여 해당 장치 제어
                 self.reader.control_fan(True, slave_id=slave_id)
                 print(f"✅ Slave {slave_id}: 릴레이 ON")
-            elif action == "off":
+            elif action == "OFF":
                 self.reader.control_fan(False, slave_id=slave_id)
                 print(f"✅ Slave {slave_id}: 릴레이 OFF")
 
