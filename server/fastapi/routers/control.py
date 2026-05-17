@@ -6,6 +6,7 @@ from models import RelayLog
 import paho.mqtt.client as mqtt
 import json
 import os
+import time
 
 router = APIRouter(prefix="/control", tags=["control"])
 
