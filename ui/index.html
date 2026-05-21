@@ -32,7 +32,6 @@
     padding: 24px;
   }
 
-  
   body::before {
     content: '';
     position: fixed;
@@ -47,7 +46,6 @@
 
   .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; }
 
-  
   header {
     display: flex;
     align-items: center;
@@ -90,14 +88,12 @@
 
   #conn-label { color: var(--text); }
 
-  
   #timestamp {
     font-family: var(--mono);
     font-size: 12px;
     color: var(--muted);
   }
 
-  
   .api-bar {
     display: flex;
     gap: 10px;
@@ -122,10 +118,8 @@
 
   .api-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
 
-  
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 
- 
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -160,7 +154,7 @@
 
   .card-value {
     font-family: var(--mono);
-    font-size: 120px; font-weight: 700;
+    font-size: 120px;
     font-weight: 400;
     line-height: 1;
     color: var(--accent);
@@ -184,7 +178,6 @@
     margin-top: 8px;
   }
 
-  
   .fan-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -270,7 +263,6 @@
 
   .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  
   .log-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -319,7 +311,6 @@
   .log-msg.err { color: var(--warn); }
   .log-msg.info { color: var(--accent); }
 
-  
   .refresh-row {
     display: flex;
     align-items: center;
@@ -362,7 +353,6 @@
     100% { opacity: 1; }
   }
 
-  /* ── 그래프 카드 ── */
   .chart-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -434,7 +424,6 @@
 <body>
 <div class="wrap">
 
-  
   <header>
     <div class="logo">
       SCADA
@@ -446,7 +435,6 @@
     </div>
   </header>
 
-  
   <div class="api-bar">
     <label>API 주소</label>
     <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000">
@@ -456,7 +444,6 @@
     <input type="number" id="slave-relay" value="2" style="width:70px">
   </div>
 
-  
   <div class="refresh-row">
     <button class="btn-refresh" onclick="fetchSensor()">↻ 조회</button>
     <span class="auto-label">자동 갱신</span>
@@ -468,7 +455,6 @@
     </select>
   </div>
 
-  
   <div class="grid">
     <div class="card warn">
       <div class="card-label">온도 · Temperature</div>
@@ -482,7 +468,6 @@
     </div>
   </div>
 
-  <!-- ── 시간대별 그래프 ── -->
   <div class="chart-card">
     <div class="chart-header">
       <span class="chart-title">시간대별 센서 데이터 · History Graph</span>
@@ -501,9 +486,8 @@
     </div>
   </div>
 
-  <!-- ── 팬 제어 ── -->
+  <div class="fan-card">
     <div class="fan-icon">
-     
       <svg class="fan-svg" id="fan-icon" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="40" cy="40" r="38" stroke="#1e2d42" stroke-width="1.5"/>
         <path d="M40 40 C40 25, 55 18, 62 26 C69 34, 55 40, 40 40Z" fill="#4a6080" opacity="0.8"/>
@@ -525,7 +509,6 @@
     </div>
   </div>
 
- 
   <div class="log-card">
     <div class="log-header">
       <span class="log-title">통신 로그 · Communication Log</span>
@@ -540,14 +523,12 @@
 let autoTimer = null;
 let fanState = false;
 
-
 function tick() {
   const now = new Date();
   document.getElementById('timestamp').textContent =
     now.toLocaleTimeString('ko-KR', {hour12: false});
 }
 setInterval(tick, 1000); tick();
-
 
 function log(msg, type='') {
   const el = document.getElementById('log');
@@ -561,13 +542,11 @@ function log(msg, type='') {
 
 function clearLog() { document.getElementById('log').innerHTML = ''; }
 
-
 function setConn(ok, msg) {
   document.getElementById('conn-dot').className = 'dot ' + (ok ? 'ok' : 'err');
   document.getElementById('conn-label').textContent = msg;
 }
 
-// API URL
 function apiUrl() {
   return (document.getElementById('api-url').value || 'http://localhost:8000').replace(/\/$/, '');
 }
@@ -575,11 +554,13 @@ function slaveId(type) {
   return parseInt(document.getElementById(type === 'sensor' ? 'slave-sensor' : 'slave-relay').value) || (type === 'sensor' ? 1 : 2);
 }
 
-
+// ── fetchSensor : 지연 시간 측정 추가 ──────────────────────────────
 async function fetchSensor() {
   const sid = slaveId('sensor');
   const url = `${apiUrl()}/sensors/${sid}/data`;
   log(`GET ${url}`, 'info');
+
+  const uiReceiveTime = Date.now(); // UI 수신 시간 (fetch 호출 직전 기록)
 
   try {
     const res = await fetch(url, {
@@ -591,8 +572,16 @@ async function fetchSensor() {
 
     const data = await res.json();
 
-  
-    // 형식: { "slave_id": 1, "timestamp": "...", "data": { "temperature": 24.5, "humidity": 61.2 } }
+    // GW 수신 시간 & 지연 계산
+    // data.received_at : 백엔드가 Unix ms 타임스탬프로 반환해야 함
+    const gwReceiveTime = data.received_at;
+    const latency = uiReceiveTime - gwReceiveTime;
+
+    log(`⏱ GW 수신 시간: ${new Date(gwReceiveTime).toLocaleTimeString('ko-KR', {hour12:false, fractionalSecondDigits:3})}`, 'info');
+    log(`⏱ UI 수신 시간: ${new Date(uiReceiveTime).toLocaleTimeString('ko-KR', {hour12:false, fractionalSecondDigits:3})}`, 'info');
+    log(`⏱ 지연 시간: ${latency}ms`, 'info');
+
+    // 형식: { "slave_id": 1, "timestamp": "...", "received_at": 1700000000000, "data": { "temperature": 24.5, "humidity": 61.2 } }
     const temp = data?.data?.temperature ?? data?.temperature ?? null;
     const hum  = data?.data?.humidity    ?? data?.humidity    ?? null;
     const sid2 = data?.slave_id ?? sid;
@@ -605,7 +594,6 @@ async function fetchSensor() {
     document.getElementById('temp-slave').textContent = `slave_id: ${sid2}  ${ts}`;
     document.getElementById('hum-slave').textContent  = `slave_id: ${sid2}`;
 
-    
     document.getElementById('temp-val').classList.add('flash');
     document.getElementById('hum-val').classList.add('flash');
     setTimeout(() => {
@@ -615,14 +603,14 @@ async function fetchSensor() {
 
     setConn(true, 'API 연결됨');
     log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
-    fetchHistory();  // 센서 갱신할 때마다 그래프도 업데이트
+    fetchHistory(); // 센서 갱신할 때마다 그래프도 업데이트
 
   } catch(e) {
     setConn(false, 'API 오류');
     log(`오류: ${e.message}`, 'err');
   }
 }
-
+// ──────────────────────────────────────────────────────────────────
 
 async function controlRelay(action) {
   const sid = slaveId('relay');
@@ -631,7 +619,6 @@ async function controlRelay(action) {
 
   log(`POST ${url}  action:${action}`, 'info');
 
-  
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
 
   try {
@@ -644,14 +631,12 @@ async function controlRelay(action) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    
     fanState = (action === 'on');
     const statusEl = document.getElementById('fan-status');
     statusEl.textContent = fanState ? 'ON' : 'OFF';
     statusEl.className = 'fan-status ' + (fanState ? 'on' : 'off');
     document.getElementById('fan-slave').textContent = `slave_id: ${sid}`;
 
-  
     const icon = document.getElementById('fan-icon');
     icon.classList.toggle('spinning', fanState);
 
@@ -666,7 +651,6 @@ async function controlRelay(action) {
   }
 }
 
-
 function setAutoRefresh() {
   clearInterval(autoTimer);
   const ms = parseInt(document.getElementById('interval-select').value);
@@ -678,7 +662,6 @@ function setAutoRefresh() {
   }
 }
 
-
 function applyConfig() {
   const env = CONFIG.get();
   document.getElementById('api-url').value = env.api;
@@ -686,13 +669,11 @@ function applyConfig() {
   document.getElementById('slave-relay').value  = CONFIG.DEFAULT_SLAVE_RELAY;
   document.getElementById('interval-select').value = CONFIG.DEFAULT_INTERVAL;
 
- 
   const badge = document.createElement('span');
   badge.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--accent);margin-left:12px;';
   badge.textContent = `[${env.label}]`;
   document.querySelector('.logo').appendChild(badge);
 }
-
 
 // ── 히스토리 그래프 ──
 let sensorChart = null;
@@ -791,11 +772,9 @@ async function fetchHistory() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = await res.json();
 
-    // 배열 또는 { data: [...] } 형식 모두 대응
     const list = Array.isArray(raw) ? raw : (raw.data ?? raw.history ?? []);
     if (!list.length) { log('히스토리 데이터 없음', 'err'); return; }
 
-    // 오래된 순으로 정렬
     list.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     const labels = list.map(d => {
