@@ -26,7 +26,7 @@ class SecurityEngine:
         current_threshold = 45.0 
         
         # 터미널에서 눈으로 직접 확인하기 위한 디버깅 로그
-        print(f"🔍 [디버깅] 현재 온도: {temp}°C | 비교할 기준치: {current_threshold}°C")
+        print(f"🔍 현재 온도: {temp}°C | 비교할 기준치: {current_threshold}°C")
         
         # 무조건 35.5 >= 45.0 을 비교하게 되므로 무조건 else로 빠짐
         if temp >= current_threshold:
