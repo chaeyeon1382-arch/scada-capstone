@@ -60,9 +60,10 @@ def main():
 
             payload = {"data": {"temperature": temp, "humidity": hum}}
             result = security.analyze(payload)
+            status = result['status']
             print(f"🔒 보안 상태: {result['status']}")        
 
-            mqtt_mg.publish_sensor(slave_id=SENSOR_ID, temp=temp, hum=hum)
+            mqtt_mg.publish_sensor(slave_id=SENSOR_ID, temp=temp, hum=hum, status=status)
             time.sleep(5)
 
     except KeyboardInterrupt:

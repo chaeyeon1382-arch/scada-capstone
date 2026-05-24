@@ -65,17 +65,6 @@ class MQTTClientManager:
                 self.reader.control_fan(False, slave_id=slave_id)
                 print(f"✅ Slave {slave_id}: 릴레이 OFF ✅")
 
-            """
-                if action == "on":
-                    # slave_id를 인자로 전달하여 해당 장치 제어
-                    self.reader.write_coil(0, True) # 실제 하드웨어 0번 핀(또는 주소) 작동
-                    print("✅ 릴레이 ON")
-                elif action == "off":
-                    self.reader.write_coil(0, False)
-                    print("✅ 릴레이 OFF")
-                else:
-                    print(f"⚠️ 알 수 없는 명령: {action}")
-            """
                 
         except Exception as e:
             print(f"❌ 명령 해석 오류: {e}")
@@ -89,7 +78,7 @@ class MQTTClientManager:
             print(f"❌ 초기 연결 실패: {e}")
             return False
 
-    def publish_sensor(self, slave_id, temp, hum):
+    def publish_sensor(self, slave_id, temp, hum, status="NORMAL"):
         if not self.client.is_connected():
             print("⚠️ 연결 끊김: 전송을 건너뜁니다.")
             return
@@ -100,7 +89,8 @@ class MQTTClientManager:
             "temperature": temp, 
             "humidity": hum,     
             "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            "received_at": datetime.now().timestamp() # 초 단위 추가
+            "received_at": datetime.now().timestamp(), # 초 단위 추가
+            "status": status
         }
         
         topic = f"scada/sensor/{slave_id}/data"

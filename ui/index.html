@@ -460,6 +460,7 @@
       <div class="card-label">온도 · Temperature</div>
       <div class="card-value" id="temp-val">--<span class="card-unit">°C</span></div>
       <div class="card-slave" id="temp-slave">slave_id: -</div>
+      <div id="security-status" style="margin-top:12px; font-family:var(--mono); font-size:14px; color:var(--muted);">STATUS: --</div>
     </div>
     <div class="card green">
       <div class="card-label">습도 · Humidity</div>
@@ -588,6 +589,17 @@ async function fetchSensor() {
     const hum  = data?.data?.humidity    ?? data?.humidity    ?? null;
     const sid2 = data?.slave_id ?? sid;
     const ts   = data?.timestamp ?? '';
+
+    const status = data?.status ?? 'NORMAL';
+    const statusEl = document.getElementById('security-status');
+    if (status === 'ATTACK_DETECTED') {
+        statusEl.textContent = '🚨 ATTACK_DETECTED';
+        statusEl.style.color = 'var(--warn)';
+    } else {
+        statusEl.textContent = '✅ NORMAL';
+        statusEl.style.color = 'var(--accent2)';
+    }
+
 
     document.getElementById('temp-val').innerHTML =
       temp !== null ? `${temp}<span class="card-unit">°C</span>` : `--<span class="card-unit">°C</span>`;
