@@ -11,6 +11,8 @@ class SensorData(Base):
     temperature = Column(Float, nullable=False)
     humidity = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    status = Column(String)
+    received_at = Column(Float, nullable=True)
 
 
 class RelayLog(Base):

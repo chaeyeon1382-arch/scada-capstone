@@ -23,7 +23,9 @@ def on_message(client, userdata, msg):
         record = SensorData(
             slave_id=payload["slave_id"],
             temperature=payload.get("temperature") or payload.get("data", {}).get("temperature"),
-            humidity=payload.get("humidity") or payload.get("data", {}).get("humidity")
+            humidity=payload.get("humidity") or payload.get("data", {}).get("humidity"),
+            status=payload.get("status", "NORMAL"),
+            received_at=payload.get("received_at")
         )
         db.add(record)
         db.commit()
