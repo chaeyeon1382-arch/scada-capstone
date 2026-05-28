@@ -8,11 +8,14 @@ services:
       - "1883:1883"
       - "5672:5672"
       - "15672:15672"
+      - "8883:8883"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     volumes:
       - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./rabbitmq/certs:/etc/rabbitmq/certs
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - scada-net
