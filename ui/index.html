@@ -580,7 +580,7 @@ async function fetchSensor() {
 
     // ★2,3. T2 & T3 수집
     // ★백엔드가 넘겨준 라즈베리파이 원본 수집 타임스탬프 (초 단위를 ms 단위로 변환)
-    const gwReceiveTime = data.received_at * 1000;  
+    const gwReceiveTime = data.received_at;  
     const T2 = gwReceiveTime;
     const T3 = T2; // (서버 대기 시간을 배제하기 위해 임시 동시 매칭 처리)
 
