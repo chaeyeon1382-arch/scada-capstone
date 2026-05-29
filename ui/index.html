@@ -595,12 +595,37 @@ async function fetchSensor() {
     const rawLatency = T4 - T2; 
     const correctedLatency = ((rawLatency - clockOffset) / 1000).toFixed(3);
 
+    // ★ 시간 포맷 변환 함수 (밀리초 숫자를 시:분:초.ms 문자열로 변환)
+    const formatMsToTime = (ms) => {
+      const d = new Date(ms);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const mss = String(d.getMilliseconds()).padStart(3, '0');
+      return `${hh}:${mm}:${ss}.${mss}`;
+    };
+
+    // ★ 오차 메시지 직관적으로 가공하기
+    const absOffsetSec = Math.abs(clockOffset / 1000).toFixed(2);
+    const offsetMsg = clockOffset < 0 
+      ? `게이트웨이가 ${absOffsetSec}초 느림` 
+      : `게이트웨이가 ${absOffsetSec}초 빠름`;
+
+    //★ 화면 로그창에 가독성 높은 형태로 출력하기
+    log(`⏱️ [T1] 노트북 출발: ${formatMsToTime(T1)}`, 'info');
+    log(`⏱️ [T2/T3] 게이트웨이: ${formatMsToTime(T2)}`, 'info');
+    log(`⏱️ [T4] 노트북 도착: ${formatMsToTime(T4)}`, 'info');
+    log(`🚨 [실시간 오차]: ${offsetMsg}`, 'err');
+    log(`✅ [보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
+
+    /*
     //★ 화면 로그창에 실시간 연산 과정 출력하기
     log(`⏱️ [T1] 노트북 출발: ${T1} ms`, 'info');
     log(`⏱️ [T2/T3] 게이트웨이: ${T2} ms`, 'info');
     log(`⏱️ [T4] 노트북 도착: ${T4} ms`, 'info');
     log(`🚨 [실시간 오차(Offset)]: ${clockOffset.toFixed(2)} ms (약 ${(clockOffset/1000).toFixed(2)}초 차이)`, 'err');
     log(`✅ [보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
+    */
 
     /*
     // GW 수신 시간 & 지연 계산
