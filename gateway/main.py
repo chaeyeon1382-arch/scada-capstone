@@ -52,13 +52,15 @@ def main():
                 data = modbus.read_sensor_data(slave_id=SENSOR_ID)
                 if data:
                     t1 = datetime.now()  # 센서 데이터 받은 시간
-                    temp, hum = data[0]/10, data[1]/10
+                    hum, temp= data[0]/10, data[1]/10
                     print(f"⏱ [GW 수신 시간] {t1.strftime('%H:%M:%S.%f')[:-3]}")
                 else:
                     continue
 
 
-            payload = {"data": {"temperature": temp, "humidity": hum}}
+            payload = {
+                "data": {"temperature": temp, "humidity": hum}, "t3": int(time.time() * 1000)
+                }
             result = security.analyze(payload)
             status = result['status']
             print(f"🔒 보안 상태: {result['status']}")        
