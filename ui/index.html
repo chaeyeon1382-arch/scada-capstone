@@ -521,6 +521,329 @@
 </div>
 
 <script>
+function tick() {
+  const now = new Date();
+  document.getElementById('timestamp').textContent =
+    now.toLocaleTimeString('ko-KR', {hour12: false});
+}
+setInterval(tick, 1000); tick();
+
+function log(msg, type='') {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('ko-KR', {hour12: false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  el.prepend(entry);
+  if (el.children.length > 60) el.lastChild.remove();
+}
+
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+function setConn(ok, msg) {
+  document.getElementById('conn-dot').className = 'dot ' + (ok ? 'ok' : 'err');
+  document.getElementById('conn-label').textContent = msg;
+}
+
+function apiUrl() {
+  return (document.getElementById('api-url').value || 'http://localhost:8000').replace(/\/$/, '');
+}
+function slaveId(type) {
+  return parseInt(document.getElementById(type === 'sensor' ? 'slave-sensor' : 'slave-relay').value) || (type === 'sensor' ? 1 : 2);
+}
+
+// ── fetchSensor : 지연 시간 측정 방식 수정 (서버 출발 시간 기준) ──────────────────────────────
+async function fetchSensor() {
+  const sid = slaveId('sensor');
+  const url = `${apiUrl()}/sensors/${sid}/data`;
+  log(`GET ${url}`, 'info');
+
+  // ★ UI가 클라우드 서버에 데이터를 요청하기 직전 시간 기록
+  const T1 = Date.now();
+  
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    
+    // ★ 데이터가 브라우저에 최종 도착한 순간 기록
+    const uiReceiveTime = Date.now(); 
+    const T4 = uiReceiveTime;
+
+    // 🛠️ [수정 완료] 다른 친구분이 제안한 '서버 출발 시간(server_send_time)' 기준 지연 공식 적용
+    // FastAPI 서버가 찍어준 초 단위 타임스탬프를 ms 단위로 변환합니다.
+    const serverSendTime = data.server_send_time * 1000;
+    const latency = ((uiReceiveTime - serverSendTime) / 1000).toFixed(3);
+
+    // ★ 시간 포맷 변환 함수 (밀리초 숫자를 시:분:초.ms 문자열로 변환)
+    const formatMsToTime = (ms) => {
+      const d = new Date(ms);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const mss = String(d.getMilliseconds()).padStart(3, '0');
+      return `${hh}:${mm}:${ss}.${mss}`;
+    };
+
+    // 화면 로그창에 아주 직관적이고 깔끔하게 레이턴시 출력하기
+    log(`⏱️ [서버 출발 시점]: ${formatMsToTime(serverSendTime)}`, 'info');
+    log(`⏱️ [노트북 도착 시점]: ${formatMsToTime(T4)}`, 'info');
+    log(`✅ [보정 후 순수 지연]: ${latency}초`, 'ok');
+
+    // 기존 데이터 매핑 로직 유지
+    const temp = data?.data?.temperature ?? data?.temperature ?? null;
+    const hum  = data?.data?.humidity    ?? data?.humidity    ?? null;
+    const sid2 = data?.slave_id ?? sid;
+    const ts   = data?.timestamp ?? '';
+
+    const status = data?.status ?? 'NORMAL';
+    const statusEl = document.getElementById('security-status');
+    if (status === 'ATTACK_DETECTED') {
+        statusEl.textContent = '🚨 ATTACK_DETECTED';
+        statusEl.style.color = 'var(--warn)';
+    } else {
+        statusEl.textContent = '✅ NORMAL';
+        statusEl.style.color = 'var(--accent2)';
+    }
+
+    document.getElementById('temp-val').innerHTML =
+      temp !== null ? `${temp}<span class="card-unit">°C</span>` : `--<span class="card-unit">°C</span>`;
+    document.getElementById('hum-val').innerHTML =
+      hum  !== null ? `${hum}<span class="card-unit">%</span>`  : `--<span class="card-unit">%</span>`;
+    document.getElementById('temp-slave').textContent = `slave_id: ${sid2}  ${ts}`;
+    document.getElementById('hum-slave').textContent  = `slave_id: ${sid2}`;
+
+    document.getElementById('temp-val').classList.add('flash');
+    document.getElementById('hum-val').classList.add('flash');
+    setTimeout(() => {
+      document.getElementById('temp-val').classList.remove('flash');
+      document.getElementById('hum-val').classList.remove('flash');
+    }, 400);
+
+    setConn(true, 'API 연결됨');
+    log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
+    
+    // ❌ [과부하 원인 제거] 5초마다 무겁게 그래프 데이터 가져오던 fetchHistory(); 줄을 완벽하게 제거했습니다!
+
+  } catch(e) {
+    setConn(false, 'API 오류');
+    log(`오류: ${e.message}`, 'err');
+  }
+}
+// ──────────────────────────────────────────────────────────────────-
+
+async function controlRelay(action) {
+  const sid = slaveId('relay');
+  const url = `${apiUrl()}/control/relay/${sid}`;
+  const body = { "action": action };
+
+  log(`POST ${url}  action:${action}`, 'info');
+
+  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    fanState = (action === 'on');
+    const statusEl = document.getElementById('fan-status');
+    statusEl.textContent = fanState ? 'ON' : 'OFF';
+    statusEl.className = 'fan-status ' + (fanState ? 'on' : 'off');
+    document.getElementById('fan-slave').textContent = `slave_id: ${sid}`;
+
+    const icon = document.getElementById('fan-icon');
+    icon.classList.toggle('spinning', fanState);
+
+    setConn(true, 'API 연결됨');
+    log(`릴레이 ${action.toUpperCase()} 성공`, 'ok');
+
+  } catch(e) {
+    setConn(false, 'API 오류');
+    log(`오류: ${e.message}`, 'err');
+  } finally {
+    document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+  }
+}
+
+// 자동 갱신 타이머 객체 변수 선언 (기존 전역변수 설정 유지용)
+let autoTimer = null;
+
+function setAutoRefresh() {
+  clearInterval(autoTimer);
+  const ms = parseInt(document.getElementById('interval-select').value);
+  if (ms > 0) {
+    autoTimer = setInterval(fetchSensor, ms);
+    log(`자동 갱신 ${ms/1000}초 시작`, 'info');
+  } else {
+    log('자동 갱신 OFF');
+  }
+}
+
+function applyConfig() {
+  const env = CONFIG.get();
+  document.getElementById('api-url').value = env.api;
+  document.getElementById('slave-sensor').value = CONFIG.DEFAULT_SLAVE_SENSOR;
+  document.getElementById('slave-relay').value  = CONFIG.DEFAULT_SLAVE_RELAY;
+  document.getElementById('interval-select').value = CONFIG.DEFAULT_INTERVAL;
+
+  const badge = document.createElement('span');
+  badge.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--accent);margin-left:12px;';
+  badge.textContent = `[${env.label}]`;
+  document.querySelector('.logo').appendChild(badge);
+}
+
+// ── 히스토리 그래프 ──
+let sensorChart = null;
+
+function initChart() {
+  const ctx = document.getElementById('sensorChart').getContext('2d');
+  sensorChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: '온도 (°C)',
+          data: [],
+          borderColor: '#ff6b35',
+          backgroundColor: 'rgba(255,107,53,0.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#ff6b35',
+          tension: 0.3,
+          yAxisID: 'yTemp',
+        },
+        {
+          label: '습도 (%)',
+          data: [],
+          borderColor: '#00ff9d',
+          backgroundColor: 'rgba(0,255,157,0.06)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#00ff9d',
+          tension: 0.3,
+          yAxisID: 'yHum',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#c8d8e8',
+            font: { family: 'Share Tech Mono', size: 11 },
+            boxWidth: 12,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#0f1520',
+          borderColor: '#1e2d42',
+          borderWidth: 1,
+          titleColor: '#4a6080',
+          bodyColor: '#c8d8e8',
+          titleFont: { family: 'Share Tech Mono', size: 11 },
+          bodyFont: { family: 'Share Tech Mono', size: 12 },
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#4a6080',
+            font: { family: 'Share Tech Mono', size: 10 },
+            maxTicksLimit: 8,
+            maxRotation: 30,
+          },
+          grid: { color: 'rgba(30,45,66,0.8)' },
+        },
+        yTemp: {
+          position: 'left',
+          ticks: { color: '#ff6b35', font: { family: 'Share Tech Mono', size: 10 }, callback: v => v + '°C' },
+          grid: { color: 'rgba(30,45,66,0.8)' },
+        },
+        yHum: {
+          position: 'right',
+          ticks: { color: '#00ff9d', font: { family: 'Share Tech Mono', size: 10 }, callback: v => v + '%' },
+          grid: { drawOnChartArea: false },
+        }
+      }
+    }
+  });
+}
+
+async function fetchHistory() {
+  const sid   = slaveId('sensor');
+  const limit = document.getElementById('chart-limit').value;
+  const url   = `${apiUrl()}/sensors/${sid}/history?limit=${limit}`;
+
+  document.getElementById('chart-loading').classList.remove('hidden');
+  log(`GET ${url}`, 'info');
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+
+    const list = Array.isArray(raw) ? raw : (raw.data ?? raw.history ?? []);
+    if (!list.length) { log('히스토리 데이터 없음', 'err'); return; }
+
+    list.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    const labels = list.map(d => {
+      const t = new Date(d.timestamp);
+      return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+    });
+    const temps = list.map(d => d?.data?.temperature ?? d?.temperature ?? null);
+    const hums  = list.map(d => d?.data?.humidity    ?? d?.humidity    ?? null);
+
+    sensorChart.data.labels            = labels;
+    sensorChart.data.datasets[0].data  = temps;
+    sensorChart.data.datasets[1].data  = hums;
+    sensorChart.update();
+
+    log(`히스토리 ${list.length}건 로드 완료`, 'ok');
+  } catch(e) {
+    log(`히스토리 오류: ${e.message}`, 'err');
+  } finally {
+    document.getElementById('chart-loading').classList.add('hidden');
+  }
+}
+
+// 초기 실행 설정들
+applyConfig();
+initChart();
+setConn(false, '대기 중');
+log(`환경: ${CONFIG.get().label}  →  ${CONFIG.get().api}`, 'info');
+log('UI 시작 — [조회] 버튼을 눌러 센서 데이터를 불러오세요', 'info');
+
+// 🛠️ [타이머 분리 핵심] 
+// 센서 수집 타이머 가동 (5초 주기는 setAutoRefresh 내부에서 동작)
+setAutoRefresh(); 
+
+// ⚠️ 서버 과부하를 막기 위해 히스토리 그래프 갱신은 1분(60초)에 한 번씩만 독립적으로 작동하게 만듭니다.
+fetchHistory(); // 처음 UI 켰을 때 초기 그래프 1번 그려주기
+setInterval(fetchHistory, 60000); // 이후 60초마다 주기적 실행
+</script>
+
+
+<!--
+<script> 
 let autoTimer = null;
 let fanState = false;
 
@@ -872,5 +1195,9 @@ log(`환경: ${CONFIG.get().label}  →  ${CONFIG.get().api}`, 'info');
 log('UI 시작 — [조회] 버튼을 눌러 센서 데이터를 불러오세요', 'info');
 setAutoRefresh();
 </script>
+-->
+
+
+
 </body>
 </html>
