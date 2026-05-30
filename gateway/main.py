@@ -66,7 +66,7 @@ def main():
             print(f"🔒 보안 상태: {result['status']}")        
 
             mqtt_mg.publish_sensor(slave_id=SENSOR_ID, temp=temp, hum=hum, status=status)
-            time.sleep(5)
+            time.sleep(0.2)
 
     except KeyboardInterrupt:
         mqtt_mg.disconnect()
