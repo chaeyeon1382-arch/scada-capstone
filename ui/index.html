@@ -561,6 +561,8 @@ async function fetchSensor() {
   const url = `${apiUrl()}/sensors/${sid}/data`;
   log(`GET ${url}`, 'info');
 
+  // ★1. T1: 노트북이 클라우드 서버에 데이터를 요청하기 직전 시간 기록
+  const T1 = Date.now();
   
 
   try {
@@ -572,9 +574,60 @@ async function fetchSensor() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
-    const uiReceiveTime = Date.now(); // UI 수신 시간 (fetch 호출 직전 기록)
+    // ★4. T4: 응답 패킷이 노트북 웹 브라우저에 최종 도착한 바로 그 순간 기록
+    const uiReceiveTime = Date.now(); 
+    const T4 = uiReceiveTime;
+
+    // ★2,3. T2 & T3 수집
+    // ★백엔드가 넘겨준 라즈베리파이 원본 수집 타임스탬프 (초 단위를 ms 단위로 변환)
+    const gwReceiveTime = Math.floor(data.received_at * 1000); 
+    const T2 = gwReceiveTime;
+    const T3 = T2; // (서버 대기 시간을 배제하기 위해 임시 동시 매칭 처리)
 
 
+    // ★🧮 [실시간 하드웨어 시계 오차 계산]
+    // ★공식: ((T2 - T1) + (T3 - T4)) / 2
+    const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
+
+
+    // ★🏃‍♂️ [진짜 네트워크 레이턴시 보정]
+    // ★기존 겉보기 지연 시간에서 실시간으로 구한 시계 오차(clockOffset)를 빼서 캘리브레이션합니다.
+    const rawLatency = T4 - T2; 
+    const correctedLatency = ((rawLatency - clockOffset) / 1000).toFixed(3);
+
+    // ★ 시간 포맷 변환 함수 (밀리초 숫자를 시:분:초.ms 문자열로 변환)
+    const formatMsToTime = (ms) => {
+      const d = new Date(ms);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const mss = String(d.getMilliseconds()).padStart(3, '0');
+      return `${hh}:${mm}:${ss}.${mss}`;
+    };
+
+    // ★ 오차 메시지 직관적으로 가공하기
+    const absOffsetSec = Math.abs(clockOffset / 1000).toFixed(2);
+    const offsetMsg = clockOffset < 0 
+      ? `게이트웨이가 ${absOffsetSec}초 느림` 
+      : `게이트웨이가 ${absOffsetSec}초 빠름`;
+
+    //★ 화면 로그창에 가독성 높은 형태로 출력하기
+    log(`⏱️ [T1] 노트북 출발: ${formatMsToTime(T1)}`, 'info');
+    log(`⏱️ [T2/T3] 게이트웨이: ${formatMsToTime(T2)}`, 'info');
+    log(`⏱️ [T4] 노트북 도착: ${formatMsToTime(T4)}`, 'info');
+    log(`🚨 [실시간 오차]: ${offsetMsg}`, 'err');
+    log(`✅ [보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
+
+    /*
+    //★ 화면 로그창에 실시간 연산 과정 출력하기
+    log(`⏱️ [T1] 노트북 출발: ${T1} ms`, 'info');
+    log(`⏱️ [T2/T3] 게이트웨이: ${T2} ms`, 'info');
+    log(`⏱️ [T4] 노트북 도착: ${T4} ms`, 'info');
+    log(`🚨 [실시간 오차(Offset)]: ${clockOffset.toFixed(2)} ms (약 ${(clockOffset/1000).toFixed(2)}초 차이)`, 'err');
+    log(`✅ [보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
+    */
+
+    /*
     // GW 수신 시간 & 지연 계산
     // data.received_at : 백엔드가 Unix ms 타임스탬프로 반환해야 함
    // 레이턴시 계산

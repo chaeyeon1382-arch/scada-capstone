@@ -4,7 +4,7 @@
 
 
 class SecurityEngine:
-    def __init__(self, threshold=45.0):
+    def __init__(self, threshold=30.0):
         self.threshold = float(threshold)
 
     def analyze(self, sensor_payload):
@@ -23,7 +23,7 @@ class SecurityEngine:
             temp = temp / 10.0
         
         # 외부에서 무슨 값을 보냈든 상관없이 무조건 45.0도로 강제 고정
-        current_threshold = 45.0 
+        current_threshold = 30.0 
         
         # 터미널에서 눈으로 직접 확인하기 위한 디버깅 로그
         print(f"🔍 현재 온도: {temp}°C | 비교할 기준치: {current_threshold}°C")
