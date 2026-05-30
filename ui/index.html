@@ -555,6 +555,135 @@ function slaveId(type) {
   return parseInt(document.getElementById(type === 'sensor' ? 'slave-sensor' : 'slave-relay').value) || (type === 'sensor' ? 1 : 2);
 }
 
+
+// ── fetchSensor : 실시간 하드웨어 시계 오차(Clock Offset) 동적 보정 및 슬라이딩 차트 통합 ──
+async function fetchSensor() {
+  const sid = slaveId('sensor');
+  const url = `${apiUrl()}/sensors/${sid}/data`;
+  log(`GET ${url}`, 'info');
+
+  // ★ [T1] 노트북이 클라우드 서버에 데이터를 요청하기 직전 타임스탬프 기록 (ms 단위)
+  const T1 = Date.now(); 
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    
+    // ★ [T4] 응답 패킷이 노트북 웹 브라우저에 최종 도착한 바로 그 순간 기록 (ms 단위)
+    const T4 = Date.now(); 
+
+    // ★ [T2 / T3] 게이트웨이(라즈베리파이)가 최초 데이터를 계측하여 기록한 원본 시간 수집
+    // 백엔드가 넘겨준 Unix 타임스탬프(초 단위)를 ms 단위로 안전하게 변환합니다.
+    const gwReceiveTime = Math.floor((data.received_at ?? data.server_send_time) * 1000); 
+    const T2 = gwReceiveTime;
+    const T3 = T2; // (서버 내 대기 시간을 배제하기 위해 동시 매칭 캘리브레이션)
+
+    // 🧮 [교수님 권장: 실시간 하드웨어 시계 오차 동적 보정 알고리즘]
+    // 노트북과 라즈베리파이의 시계 기준선이 얼마나 어긋나 있는지 패킷 왕복 시간을 이용해 실시간 계산합니다.
+    // 공식: ((T2 - T1) + (T3 - T4)) / 2
+    const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
+
+    // 🏃‍♂️ [진짜 순수 네트워크 지연 시간 추출]
+    // 기기 간 겉보기 시차(T4 - T2)에서 실시간으로 구한 시계 오차(clockOffset)를 완벽하게 배제합니다.
+    const rawLatency = T4 - T2; 
+    const correctedLatency = ((rawLatency - clockOffset) / 1000).toFixed(3);
+
+    // 시간 포맷 변환용 헬퍼 함수 (밀리초 숫자를 시:분:초.ms 문자열로 가공)
+    const formatMsToTime = (ms) => {
+      const d = new Date(ms);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const mss = String(d.getMilliseconds()).padStart(3, '0');
+      return `${hh}:${mm}:${ss}.${mss}`;
+    };
+
+    // 실시간 오차 상태 메시지 직관적으로 가공
+    const absOffsetSec = Math.abs(clockOffset / 1000).toFixed(2);
+    const offsetMsg = clockOffset < 0 
+      ? `라즈베리파이 시계가 ${absOffsetSec}초 느림 (동적 추적 중)` 
+      : `라즈베리파이 시계가 ${absOffsetSec}초 빠름 (동적 추적 중)`;
+
+    // 📊 대시보드 콘솔 로그에 실시간 보정 연산 과정 시각화 출력
+    log(`⏱️ [T1] 노트북 출발: ${formatMsToTime(T1)}`, 'info');
+    log(`⏱️ [T2/T3] 게이트웨이: ${formatMsToTime(T2)}`, 'info');
+    log(`⏱️ [T4] 노트북 도착: ${formatMsToTime(T4)}`, 'info');
+    log(`🚨 [실시간 기기 오차]: ${offsetMsg}`, 'err');
+    log(`✅ [알고리즘 보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
+
+    // 데이터 매핑 및 방어 코드
+    const temp = data?.data?.temperature ?? data?.temperature ?? null;
+    const hum  = data?.data?.humidity    ?? data?.humidity    ?? null;
+    const sid2 = data?.slave_id ?? sid;
+    const ts   = data?.timestamp ?? '';
+
+    // 보안 상태 바인딩
+    const status = data?.status ?? 'NORMAL';
+    const statusEl = document.getElementById('security-status');
+    if (status === 'ATTACK_DETECTED') {
+        statusEl.textContent = '🚨 ATTACK_DETECTED';
+        statusEl.style.color = 'var(--warn)';
+    } else {
+        statusEl.textContent = '✅ NORMAL';
+        statusEl.style.color = 'var(--accent2)';
+    }
+
+    // 카드 UI 컴포넌트 텍스트 갱신
+    document.getElementById('temp-val').innerHTML =
+      temp !== null ? `${temp}<span class="card-unit">°C</span>` : `--<span class="card-unit">°C</span>`;
+    document.getElementById('hum-val').innerHTML =
+      hum  !== null ? `${hum}<span class="card-unit">%</span>`  : `--<span class="card-unit">%</span>`;
+    document.getElementById('temp-slave').textContent = `slave_id: ${sid2}  ${ts}`;
+    document.getElementById('hum-slave').textContent  = `slave_id: ${sid2}`;
+
+    // 반짝이는 플래시 효과 애니메이션 처리
+    document.getElementById('temp-val').classList.add('flash');
+    document.getElementById('hum-val').classList.add('flash');
+    setTimeout(() => {
+      document.getElementById('temp-val').classList.remove('flash');
+      document.getElementById('hum-val').classList.remove('flash');
+    }, 400);
+
+    setConn(true, 'API 연결됨');
+    log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
+
+    // 🛠️ 슬라이딩 윈도우 그래프 실시간 업데이트 가동
+    if (sensorChart && temp !== null && hum !== null) {
+      // 차트 x축 표현용 시:분:초 포맷 추출 (보정된 게이트웨이 타임스탬프 기준)
+      const tObj = new Date(T2);
+      const timeLabel = `${String(tObj.getHours()).padStart(2,'0')}:${String(tObj.getMinutes()).padStart(2,'0')}:${String(tObj.getSeconds()).padStart(2,'0')}`;
+      
+      // 새 실시간 데이터 1건 추가 (Push)
+      sensorChart.data.labels.push(timeLabel);
+      sensorChart.data.datasets[0].data.push(temp); // 온도 연결
+      sensorChart.data.datasets[1].data.push(hum);  // 습도 연결
+
+      // 최대 표시 개수 제한 (기본값 활용 혹은 최대 50개 유지)
+      const maxLimit = parseInt(document.getElementById('chart-limit').value) || 50;
+      if (sensorChart.data.labels.length > maxLimit) {
+        sensorChart.data.labels.shift();           // 가장 오래된 x축 삭제
+        sensorChart.data.datasets[0].data.shift(); // 가장 오래된 온도 삭제
+        sensorChart.data.datasets[1].data.shift(); // 가장 오래된 습도 삭제
+      }
+      
+      // 애니메이션 없이 즉시 부드럽게 한 칸 밀어내며 그리기
+      sensorChart.update('none'); 
+    }
+
+  } catch(e) {
+    setConn(false, 'API 오류');
+    log(`오류: ${e.message}`, 'err');
+  }
+}
+
+
+/*
 // ── fetchSensor : 슬라이딩 윈도우 그래프 갱신 및 구간별 지연 시간 연산 추가 ────────────────
 async function fetchSensor() {
   const sid = slaveId('sensor');
@@ -665,6 +794,11 @@ async function fetchSensor() {
   }
 }
 // ──────────────────────────────────────────────────────────────────-
+*/
+
+
+
+
 
 async function controlRelay(action) {
   const sid = slaveId('relay');
