@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import SensorData
-import time
 
 router = APIRouter(prefix="/sensors", tags=["sensors"])
 
@@ -16,16 +15,7 @@ def get_latest_data(slave_id: int, db: Session = Depends(get_db)):
 
     if result is None:
         raise HTTPException(status_code=404, detail="데이터 없음")
-
-    return {
-        "slave_id": result.slave_id,
-        "timestamp": result.timestamp,
-        "received_at": result.received_at,
-        "temperature": result.temperature,
-        "humidity": result.humidity,
-        "status": result.status,
-        "server_send_time": time.time()
-    }
+    return result
 
 
 @router.get("/{slave_id}/history")
@@ -36,3 +26,5 @@ def get_history(slave_id: int, limit: int = 100, db: Session = Depends(get_db)):
                .limit(limit)\
                .all()
     return result
+
+#
