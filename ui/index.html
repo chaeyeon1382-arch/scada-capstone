@@ -578,11 +578,12 @@ async function fetchSensor() {
     // GW 수신 시간 & 지연 계산
     // data.received_at : 백엔드가 Unix ms 타임스탬프로 반환해야 함
    // 레이턴시 계산
-    const gwReceiveTime = data.received_at * 1000;  // 초 → ms 변환
-    const latency = ((uiReceiveTime - gwReceiveTime) / 1000).toFixed(2);
+    const gwReceiveTime = data.received_at * 1000;
+    const serverSendTime = data.server_send_time * 1000;  // T3 추가
+    const latency = ((uiReceiveTime - serverSendTime) / 1000).toFixed(3);
     log(`⏱ GW 수신 시간: ${new Date(gwReceiveTime).toLocaleTimeString('ko-KR', {hour12:false})}`, 'info');
     log(`⏱ UI 수신 시간: ${new Date(uiReceiveTime).toLocaleTimeString('ko-KR', {hour12:false})}`, 'info');
-    log(`⏱ 지연 시간: ${latency}초`, 'info');
+    log(`⏱ 지연 시간: ${latency}초`, 'ok');
 
     // 형식: { "slave_id": 1, "timestamp": "...", "received_at": 1700000000000, "data": { "temperature": 24.5, "humidity": 61.2 } }
     const temp = data?.data?.temperature ?? data?.temperature ?? null;
