@@ -580,7 +580,8 @@ async function fetchSensor() {
 
     // 3. [구간 B] 전체 시스템 지연 시간 계산 (라즈베리파이 계측 -> 노트북 도착)
     // DB에 저장된 ISO 8601 형식의 timestamp 혹은 Unix 타임스탬프를 처리합니다.
-    const gatewayStartTimeMs = new Date(data.timestamp).getTime(); 
+    const isoTimestamp = data.timestamp.endsWith('Z') ? data.timestamp : data.timestamp + 'Z';
+    const gatewayStartTimeMs = new Date(isoTimestamp).getTime(); 
     const totalSystemDelay = ((uiReceiveTime - gatewayStartTimeMs) / 1000).toFixed(3);
 
     // 시간 포맷 변환용 헬퍼 함수
