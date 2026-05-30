@@ -582,7 +582,7 @@ async function fetchSensor() {
     // 백엔드가 넘겨준 Unix 타임스탬프(초 단위)를 ms 단위로 안전하게 변환합니다.
     const gwReceiveTime = Math.floor((data.received_at ?? data.server_send_time) * 1000); 
     const T2 = gwReceiveTime;
-    const T3 = T2; // (서버 내 대기 시간을 배제하기 위해 동시 매칭 캘리브레이션)
+    const T3 = data.server_send_time * 1000;
 
     // 🧮 [교수님 권장: 실시간 하드웨어 시계 오차 동적 보정 알고리즘]
     // 노트북과 라즈베리파이의 시계 기준선이 얼마나 어긋나 있는지 패킷 왕복 시간을 이용해 실시간 계산합니다.
