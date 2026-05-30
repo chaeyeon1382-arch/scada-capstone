@@ -26,3 +26,5 @@ def get_history(slave_id: int, limit: int = 100, db: Session = Depends(get_db)):
                .limit(limit)\
                .all()
     return result
+
+#
