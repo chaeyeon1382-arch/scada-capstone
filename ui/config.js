@@ -28,6 +28,7 @@ const CONFIG = {
   
   DEFAULT_SLAVE_SENSOR: 2,
   DEFAULT_SLAVE_RELAY:  1,
+  SLACK_WEBHOOK: "여기에_새로_발급받은_Webhook_URL",
 };
 
 CONFIG.get = function() {

@@ -87,12 +87,7 @@
   .dot.err { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
 
   #conn-label { color: var(--text); }
-
-  #timestamp {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-  }
+  #timestamp { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 
   .api-bar {
     display: flex;
@@ -115,7 +110,6 @@
   }
 
   .api-bar input:focus { border-color: var(--accent); }
-
   .api-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
 
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -164,19 +158,8 @@
 
   .card.green .card-value { color: var(--accent2); }
 
-  .card-unit {
-    font-family: var(--mono);
-    font-size: 24px;
-    color: var(--muted);
-    margin-left: 4px;
-  }
-
-  .card-slave {
-    font-size: 11px;
-    color: var(--muted);
-    font-family: var(--mono);
-    margin-top: 8px;
-  }
+  .card-unit { font-family: var(--mono); font-size: 24px; color: var(--muted); margin-left: 4px; }
+  .card-slave { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 8px; }
 
   .fan-card {
     background: var(--panel);
@@ -200,21 +183,12 @@
     opacity: 0.5;
   }
 
-  .fan-icon {
-    width: 80px;
-    height: 80px;
-    flex-shrink: 0;
-    position: relative;
-  }
-
+  .fan-icon { width: 80px; height: 80px; flex-shrink: 0; position: relative; }
   .fan-svg { width: 80px; height: 80px; }
-
   .fan-svg.spinning { animation: spin 0.8s linear infinite; }
-
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .fan-info { flex: 1; }
-
   .fan-info .card-label { margin-bottom: 6px; }
 
   .fan-status {
@@ -227,7 +201,6 @@
 
   .fan-status.on { color: var(--accent2); }
   .fan-status.off { color: var(--muted); }
-
   .fan-slave { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
   .btn-group { display: flex; gap: 10px; margin-top: 16px; }
@@ -245,22 +218,13 @@
     text-transform: uppercase;
   }
 
-  .btn-on {
-    background: transparent;
-    border-color: var(--accent2);
-    color: var(--accent2);
-  }
+  .btn-on { background: transparent; border-color: var(--accent2); color: var(--accent2); }
   .btn-on:hover { background: var(--accent2); color: var(--bg); }
   .btn-on:active { transform: scale(0.97); }
 
-  .btn-off {
-    background: transparent;
-    border-color: var(--warn);
-    color: var(--warn);
-  }
+  .btn-off { background: transparent; border-color: var(--warn); color: var(--warn); }
   .btn-off:hover { background: var(--warn); color: var(--bg); }
   .btn-off:active { transform: scale(0.97); }
-
   .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
   .log-card {
@@ -311,12 +275,7 @@
   .log-msg.err { color: var(--warn); }
   .log-msg.info { color: var(--accent); }
 
-  .refresh-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
+  .refresh-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 
   .btn-refresh {
     font-family: var(--mono);
@@ -331,7 +290,6 @@
     transition: all 0.15s;
   }
   .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
-
   .auto-label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
 
   select {
@@ -370,12 +328,7 @@
     background: linear-gradient(90deg, var(--accent), var(--accent2));
     opacity: 0.6;
   }
-  .chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-  }
+  .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .chart-title {
     font-size: 20px;
     letter-spacing: 2px;
@@ -384,15 +337,8 @@
     font-family: var(--mono);
     font-weight: 700;
   }
-  .chart-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .chart-controls select {
-    font-size: 11px;
-    padding: 4px 8px;
-  }
+  .chart-controls { display: flex; align-items: center; gap: 10px; }
+  .chart-controls select { font-size: 11px; padding: 4px 8px; }
   .btn-chart-refresh {
     font-family: var(--mono);
     font-size: 11px;
@@ -521,6 +467,49 @@
 </div>
 
 <script>
+
+// ── 슬랙 알림 ──────────────────────────────────────────────────────
+const SLACK_WEBHOOK = "https://hooks.slack.com/services/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";
+let slackCooldown = {}; // 같은 알림 60초에 1번만 전송 (도배 방지)
+
+async function sendSlack(msg, key) {
+  const now = Date.now();
+  if (slackCooldown[key] && now - slackCooldown[key] < 60000) return;
+  slackCooldown[key] = now;
+
+  try {
+    await fetch(SLACK_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: msg })
+    });
+    log(`슬랙 알림 전송 [${key}]`, 'info');
+  } catch(e) {
+    log(`슬랙 전송 오류: ${e.message}`, 'err');
+  }
+}
+
+function checkAlert(temp, hum) {
+  const now = new Date().toLocaleTimeString('ko-KR', {hour12: false});
+
+  // 🚨 온도 30도 초과
+  if (temp !== null && temp > 30) {
+    sendSlack(
+      `🚨 *[SCADA 경보]* 온도 이상 감지!\n현재 온도: *${temp}°C* (임계값 30°C 초과)\n시간: ${now}`,
+      'temp'
+    );
+  }
+
+  // 💧 습도 이상 (80% 초과 or 20% 미만)
+  if (hum !== null && (hum > 80 || hum < 20)) {
+    sendSlack(
+      `💧 *[SCADA 경보]* 습도 이상 감지!\n현재 습도: *${hum}%*\n시간: ${now}`,
+      'hum'
+    );
+  }
+}
+// ──────────────────────────────────────────────────────────────────
+
 let autoTimer = null;
 let fanState = false;
 
@@ -555,6 +544,7 @@ function slaveId(type) {
   return parseInt(document.getElementById(type === 'sensor' ? 'slave-sensor' : 'slave-relay').value) || (type === 'sensor' ? 1 : 2);
 }
 
+<<<<<<< Updated upstream
 
 // ── fetchSensor : 실시간 하드웨어 시계 오차(Clock Offset) 동적 보정 및 슬라이딩 차트 통합 ──
 async function fetchSensor() {
@@ -1037,6 +1027,9 @@ function slaveId(type) {
 }
 
 // ── fetchSensor : 지연 시간 측정 추가 ──────────────────────────────
+=======
+// ── fetchSensor : 지연 시간 측정 + 슬랙 알림 ──────────────────────
+>>>>>>> Stashed changes
 async function fetchSensor() {
   const sid = slaveId('sensor');
   const url = `${apiUrl()}/sensors/${sid}/data`;
@@ -1044,7 +1037,6 @@ async function fetchSensor() {
 
   // ★1. T1: 노트북이 클라우드 서버에 데이터를 요청하기 직전 시간 기록
   const T1 = Date.now();
-  
 
   try {
     const res = await fetch(url, {
@@ -1055,28 +1047,25 @@ async function fetchSensor() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
+
     // ★4. T4: 응답 패킷이 노트북 웹 브라우저에 최종 도착한 바로 그 순간 기록
-    const uiReceiveTime = Date.now(); 
+    const uiReceiveTime = Date.now();
     const T4 = uiReceiveTime;
 
     // ★2,3. T2 & T3 수집
-    // ★백엔드가 넘겨준 라즈베리파이 원본 수집 타임스탬프 (초 단위를 ms 단위로 변환)
-    const gwReceiveTime = Math.floor(data.received_at * 1000); 
+    const gwReceiveTime = Math.floor(data.received_at * 1000);
     const T2 = gwReceiveTime;
-    const T3 = T2; // (서버 대기 시간을 배제하기 위해 임시 동시 매칭 처리)
+    const T3 = T2; // 서버 대기 시간 배제를 위해 임시 동시 매칭 처리
 
-
-    // ★🧮 [실시간 하드웨어 시계 오차 계산]
-    // ★공식: ((T2 - T1) + (T3 - T4)) / 2
+    // ★🧮 실시간 하드웨어 시계 오차 계산
+    // 공식: ((T2 - T1) + (T3 - T4)) / 2
     const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
 
-
-    // ★🏃‍♂️ [진짜 네트워크 레이턴시 보정]
-    // ★기존 겉보기 지연 시간에서 실시간으로 구한 시계 오차(clockOffset)를 빼서 캘리브레이션합니다.
-    const rawLatency = T4 - T2; 
+    // ★🏃 진짜 네트워크 레이턴시 보정
+    const rawLatency = T4 - T2;
     const correctedLatency = ((rawLatency - clockOffset) / 1000).toFixed(3);
 
-    // ★ 시간 포맷 변환 함수 (밀리초 숫자를 시:분:초.ms 문자열로 변환)
+    // ★ 시간 포맷 변환 함수
     const formatMsToTime = (ms) => {
       const d = new Date(ms);
       const hh = String(d.getHours()).padStart(2, '0');
@@ -1086,55 +1075,35 @@ async function fetchSensor() {
       return `${hh}:${mm}:${ss}.${mss}`;
     };
 
-    // ★ 오차 메시지 직관적으로 가공하기
+    // ★ 오차 메시지 가공
     const absOffsetSec = Math.abs(clockOffset / 1000).toFixed(2);
-    const offsetMsg = clockOffset < 0 
-      ? `게이트웨이가 ${absOffsetSec}초 느림` 
+    const offsetMsg = clockOffset < 0
+      ? `게이트웨이가 ${absOffsetSec}초 느림`
       : `게이트웨이가 ${absOffsetSec}초 빠름`;
 
-    //★ 화면 로그창에 가독성 높은 형태로 출력하기
+    // ★ 로그 출력
     log(`⏱️ [T1] 노트북 출발: ${formatMsToTime(T1)}`, 'info');
     log(`⏱️ [T2/T3] 게이트웨이: ${formatMsToTime(T2)}`, 'info');
     log(`⏱️ [T4] 노트북 도착: ${formatMsToTime(T4)}`, 'info');
     log(`🚨 [실시간 오차]: ${offsetMsg}`, 'err');
     log(`✅ [보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
 
-    /*
-    //★ 화면 로그창에 실시간 연산 과정 출력하기
-    log(`⏱️ [T1] 노트북 출발: ${T1} ms`, 'info');
-    log(`⏱️ [T2/T3] 게이트웨이: ${T2} ms`, 'info');
-    log(`⏱️ [T4] 노트북 도착: ${T4} ms`, 'info');
-    log(`🚨 [실시간 오차(Offset)]: ${clockOffset.toFixed(2)} ms (약 ${(clockOffset/1000).toFixed(2)}초 차이)`, 'err');
-    log(`✅ [보정 후 순수 지연]: ${correctedLatency}초`, 'ok');
-    */
-
-    /*
-    // GW 수신 시간 & 지연 계산
-    // data.received_at : 백엔드가 Unix ms 타임스탬프로 반환해야 함
-   // 레이턴시 계산
-    const gwReceiveTime = data.received_at * 1000;  // 초 → ms 변환
-    const latency = ((uiReceiveTime - gwReceiveTime) / 1000).toFixed(2);
-    log(`⏱ GW 수신 시간: ${new Date(gwReceiveTime).toLocaleTimeString('ko-KR', {hour12:false})}`, 'info');
-    log(`⏱ UI 수신 시간: ${new Date(uiReceiveTime).toLocaleTimeString('ko-KR', {hour12:false})}`, 'info');
-    log(`⏱ 지연 시간: ${latency}초`, 'info');
-    */
-
-    // 형식: { "slave_id": 1, "timestamp": "...", "received_at": 1700000000000, "data": { "temperature": 24.5, "humidity": 61.2 } }
+    // 센서 데이터 파싱
     const temp = data?.data?.temperature ?? data?.temperature ?? null;
     const hum  = data?.data?.humidity    ?? data?.humidity    ?? null;
     const sid2 = data?.slave_id ?? sid;
     const ts   = data?.timestamp ?? '';
 
+    // 보안 상태 표시
     const status = data?.status ?? 'NORMAL';
     const statusEl = document.getElementById('security-status');
     if (status === 'ATTACK_DETECTED') {
-        statusEl.textContent = '🚨 ATTACK_DETECTED';
-        statusEl.style.color = 'var(--warn)';
+      statusEl.textContent = '🚨 ATTACK_DETECTED';
+      statusEl.style.color = 'var(--warn)';
     } else {
-        statusEl.textContent = '✅ NORMAL';
-        statusEl.style.color = 'var(--accent2)';
+      statusEl.textContent = '✅ NORMAL';
+      statusEl.style.color = 'var(--accent2)';
     }
-
 
     document.getElementById('temp-val').innerHTML =
       temp !== null ? `${temp}<span class="card-unit">°C</span>` : `--<span class="card-unit">°C</span>`;
@@ -1152,11 +1121,22 @@ async function fetchSensor() {
 
     setConn(true, 'API 연결됨');
     log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
-    fetchHistory(); // 센서 갱신할 때마다 그래프도 업데이트
+
+    // ★ 이상 감지 시 슬랙 알림 전송
+    checkAlert(temp, hum);
+
+    fetchHistory();
 
   } catch(e) {
     setConn(false, 'API 오류');
     log(`오류: ${e.message}`, 'err');
+
+    // 🔌 API 연결 오류 슬랙 알림
+    const now = new Date().toLocaleTimeString('ko-KR', {hour12: false});
+    sendSlack(
+      `🔌 *[SCADA 경보]* API 연결 오류!\n오류: ${e.message}\n시간: ${now}`,
+      'conn'
+    );
   }
 }
 // ──────────────────────────────────────────────────────────────────-
@@ -1167,7 +1147,6 @@ async function controlRelay(action) {
   const body = { "action": action };
 
   log(`POST ${url}  action:${action}`, 'info');
-
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
 
   try {
