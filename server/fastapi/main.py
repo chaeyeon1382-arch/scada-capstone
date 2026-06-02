@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import sensor, control
+from routers import sensor, control, slack
 from database import Base, engine
 from mqtt_client import start_mqtt
 
@@ -17,6 +17,7 @@ app.add_middleware(
 
 app.include_router(sensor.router)
 app.include_router(control.router)
+app.include_router(slack.router)
 
 
 @app.on_event("startup")
