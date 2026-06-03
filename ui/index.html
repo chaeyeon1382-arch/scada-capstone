@@ -534,18 +534,15 @@ function closeAlert() {
 let slackCooldown = {};
 
 async function sendSlack(msg, key) {
-  const webhook = (typeof CONFIG !== 'undefined' && CONFIG.SLACK_WEBHOOK) ? CONFIG.SLACK_WEBHOOK : null;
-  if (!webhook) return;
-
   const now = Date.now();
   if (slackCooldown[key] && now - slackCooldown[key] < 60000) return;
   slackCooldown[key] = now;
 
   try {
-    await fetch(webhook, {
+    await fetch(`${apiUrl()}/slack/alert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: msg })
+      body: JSON.stringify({ message: msg })
     });
     log(`슬랙 알림 전송 [${key}]`, 'info');
   } catch(e) {
