@@ -363,6 +363,56 @@
   }
   .chart-loading.hidden { display: none; }
 
+  /* ── NTP 지연시간 차트 ── */
+  .latency-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .latency-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #a855f7, #ff6b35);
+    opacity: 0.7;
+  }
+  .latency-stats {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .latency-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .latency-stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .latency-stat-val {
+    font-family: var(--mono);
+    font-size: 28px;
+    line-height: 1;
+  }
+  .latency-stat-val.purple { color: #a855f7; }
+  .latency-stat-val.orange { color: #ff6b35; }
+  .latency-stat-unit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
   /* ── 팝업 알림 배너 ── */
   #alert-banner {
     position: fixed;
@@ -505,6 +555,30 @@
       <button class="btn-clear" onclick="clearLog()">CLEAR</button>
     </div>
     <div id="log"></div>
+  </div>
+
+  <!-- ── NTP 보정 지연시간 차트 ── -->
+  <div class="latency-card">
+    <div class="chart-header">
+      <span class="chart-title">NTP 보정 지연시간 · Latency Graph</span>
+    </div>
+    <div class="latency-stats">
+      <div class="latency-stat-item">
+        <span class="latency-stat-label">🟣 보정 후 순수 지연</span>
+        <span class="latency-stat-val purple" id="latency-corrected-val">--<span class="latency-stat-unit">초</span></span>
+      </div>
+      <div class="latency-stat-item">
+        <span class="latency-stat-label">🔴 실시간 기기 오차</span>
+        <span class="latency-stat-val orange" id="latency-offset-val">--<span class="latency-stat-unit">초</span></span>
+      </div>
+      <div class="latency-stat-item">
+        <span class="latency-stat-label">📡 오차 방향</span>
+        <span class="latency-stat-label" id="latency-offset-dir" style="font-size:12px; color:var(--text); margin-top:4px;">측정 대기 중...</span>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="latencyChart"></canvas>
+    </div>
   </div>
 
 </div>
@@ -701,6 +775,10 @@ async function fetchSensor() {
         sensorChart.data.datasets[1].data.shift();
       }
       sensorChart.update('none');
+
+      // 🟣 NTP 지연시간 차트 업데이트
+      const clockOffsetSec = (clockOffset / 1000).toFixed(3);
+      updateLatencyChart(timeLabel, correctedLatency, clockOffsetSec);
     }
 
   } catch(e) {
@@ -771,6 +849,102 @@ function applyConfig() {
 }
 
 let sensorChart = null;
+let latencyChart = null;
+
+function initLatencyChart() {
+  const ctx = document.getElementById('latencyChart').getContext('2d');
+  latencyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: '보정 후 순수 지연 (초)',
+          data: [],
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168,85,247,0.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#a855f7',
+          tension: 0.3,
+          yAxisID: 'yLatency',
+        },
+        {
+          label: '실시간 기기 오차 (초)',
+          data: [],
+          borderColor: '#ff6b35',
+          backgroundColor: 'rgba(255,107,53,0.06)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#ff6b35',
+          tension: 0.3,
+          yAxisID: 'yLatency',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 200 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#c8d8e8',
+            font: { family: 'Share Tech Mono', size: 11 },
+            boxWidth: 12,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#0f1520',
+          borderColor: '#1e2d42',
+          borderWidth: 1,
+          titleColor: '#4a6080',
+          bodyColor: '#c8d8e8',
+          titleFont: { family: 'Share Tech Mono', size: 11 },
+          bodyFont: { family: 'Share Tech Mono', size: 12 },
+          callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}초` }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#4a6080', font: { family: 'Share Tech Mono', size: 10 }, maxTicksLimit: 8, maxRotation: 30 },
+          grid: { color: 'rgba(30,45,66,0.8)' },
+        },
+        yLatency: {
+          position: 'left',
+          ticks: { color: '#a855f7', font: { family: 'Share Tech Mono', size: 10 }, callback: v => v + 's' },
+          grid: { color: 'rgba(30,45,66,0.8)' },
+        }
+      }
+    }
+  });
+}
+
+function updateLatencyChart(timeLabel, correctedLatency, clockOffsetSec) {
+  if (!latencyChart) return;
+
+  latencyChart.data.labels.push(timeLabel);
+  latencyChart.data.datasets[0].data.push(parseFloat(correctedLatency));
+  latencyChart.data.datasets[1].data.push(parseFloat(clockOffsetSec));
+
+  if (latencyChart.data.labels.length > 50) {
+    latencyChart.data.labels.shift();
+    latencyChart.data.datasets[0].data.shift();
+    latencyChart.data.datasets[1].data.shift();
+  }
+  latencyChart.update('none');
+
+  // 현재값 표시 업데이트
+  document.getElementById('latency-corrected-val').innerHTML =
+    `${correctedLatency}<span class="latency-stat-unit">초</span>`;
+  document.getElementById('latency-offset-val').innerHTML =
+    `${Math.abs(parseFloat(clockOffsetSec)).toFixed(3)}<span class="latency-stat-unit">초</span>`;
+  document.getElementById('latency-offset-dir').textContent =
+    parseFloat(clockOffsetSec) < 0 ? '라즈베리파이 시계 느림 ↓' : '라즈베리파이 시계 빠름 ↑';
+}
 
 function initChart() {
   const ctx = document.getElementById('sensorChart').getContext('2d');
@@ -888,6 +1062,7 @@ async function fetchHistory() {
 
 applyConfig();
 initChart();
+initLatencyChart();
 setConn(false, '대기 중');
 log(`환경: ${CONFIG.get().label}  →  ${CONFIG.get().api}`, 'info');
 log('UI 시작 — 실시간 동적 슬라이딩 차트 가동 중', 'info');
