@@ -134,7 +134,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 20px 22px; /* 패딩 소폭 확대 */
+    padding: 20px 22px; /* 위아래 패딩을 넓혀 영역 확장 */
     position: relative;
     overflow: hidden;
     transition: border-color 0.3s;
@@ -157,14 +157,14 @@
     letter-spacing: 2px;
     color: var(--muted);
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-family: var(--mono);
     font-weight: 700;
   }
 
   .card-value {
     font-family: var(--mono);
-    font-size: 84px; /* 온습도 숫자 크기 확대 (72px -> 84px) */
+    font-size: 86px; /* 온습도 숫자 크기 확대 (기존 72px) */
     font-weight: 400;
     line-height: 1;
     color: var(--accent);
@@ -173,14 +173,14 @@
   }
 
   .card.green .card-value { color: var(--accent2); }
-  .card-unit { font-family: var(--mono); font-size: 20px; color: var(--muted); margin-left: 6px; }
-  .card-slave { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 6px; }
+  .card-unit { font-family: var(--mono); font-size: 18px; color: var(--muted); margin-left: 4px; }
+  .card-slave { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 4px; }
 
   .fan-card {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 16px 20px; /* 패딩 확대 */
+    padding: 16px 20px; /* 패딩을 넓혀 카드 크기 확대 */
     display: flex;
     align-items: center;
     gap: 20px;
@@ -204,13 +204,13 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .fan-info { flex: 1; }
-  .fan-info .card-label { margin-bottom: 4px; }
+  .fan-info .card-label { margin-bottom: 2px; }
 
   .fan-status {
     font-family: var(--mono);
-    font-size: 56px; /* ON/OFF 글자 크기 확대 (48px -> 56px) */
+    font-size: 56px; /* ON/OFF 글자 크기 확대 (기존 48px) */
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     transition: color 0.3s;
     line-height: 1;
   }
@@ -223,10 +223,10 @@
 
   .btn {
     font-family: var(--mono);
-    font-size: 15px; /* 버튼 글자 크기 소폭 확대 */
+    font-size: 15px; /* 버튼 텍스트 소폭 확대 */
     font-weight: 700;
     letter-spacing: 1px;
-    padding: 10px 28px; /* 버튼 패딩 확대 */
+    padding: 10px 28px; /* 버튼 크기 확대 */
     border-radius: 4px;
     border: 1px solid;
     cursor: pointer;
@@ -363,7 +363,7 @@
     padding: 14px 18px;
     position: relative;
     overflow: hidden;
-    flex: 1.2; /* 그래프 비율 축소 (기존 2 -> 1.2) */
+    flex: 1.5; /* 온습도/팬 크기를 키우면서 그래프 가시성도 확보할 수 있도록 1.5로 최적화 (기존 2) */
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -657,6 +657,7 @@ function closeAlert() {
 // ──────────────────────────────────────────────────────────────────
 
 // ── 슬랙 알림 ──────────────────────────────────────────────────────
+// Webhook URL은 config.js의 SLACK_WEBHOOK 에 넣어두세요
 let slackCooldown = {};
 
 async function sendSlack(msg, key) {
@@ -679,12 +680,14 @@ async function sendSlack(msg, key) {
 function checkAlert(temp, hum) {
   const now = new Date().toLocaleTimeString('ko-KR', {hour12: false});
 
+  // 🚨 온도 30도 초과
   if (temp !== null && temp > 30) {
     showAlert('🚨', '[SCADA 경보] 온도 이상 감지!', `온도 ${temp}°C 감지 (임계값 30°C 초과)`, `시간: ${now}  →  슬랙 알림 전송됨`);
     sendSlack(`🚨 *[SCADA 경보]* 온도 이상 감지!\n현재 온도: *${temp}°C* (임계값 30°C 초과)\n시간: ${now}`, 'temp');
     log(`🚨 온도 이상 감지: ${temp}°C`, 'err');
   }
 
+  // 💧 습도 이상 (80% 초과 or 20% 미만)
   if (hum !== null && (hum > 80 || hum < 20)) {
     showAlert('💧', '[SCADA 경보] 습도 이상 감지!', `습도 ${hum}% 감지 (정상 범위 20~80%)`, `시간: ${now}  →  슬랙 알림 전송됨`);
     sendSlack(`💧 *[SCADA 경보]* 습도 이상 감지!\n현재 습도: *${hum}%*\n시간: ${now}`, 'hum');
@@ -727,6 +730,7 @@ function slaveId(type) {
   return parseInt(document.getElementById(type === 'sensor' ? 'slave-sensor' : 'slave-relay').value) || (type === 'sensor' ? 1 : 2);
 }
 
+// ── fetchSensor : 실시간 하드웨어 시계 오차(Clock Offset) 동적 보정 ──
 async function fetchSensor() {
   const sid = slaveId('sensor');
   const url = `${apiUrl()}/sensors/${sid}/data`;
@@ -805,9 +809,11 @@ async function fetchSensor() {
     setConn(true, 'API 연결됨');
     log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
 
+    // ★ 이상 감지 → 팝업 배너 + 슬랙 알림
     checkAlert(temp, hum);
 
-    if (sensorChart && temp !== null && hum !== null) {
+    // 슬라이딩 윈도우 그래프 업데이트
+    if (sensorChart && temp !== null && hum sentinel !== null) {
       const tObj = data.timestamp ? new Date(data.timestamp) : new Date();
       const timeLabel = `${String(tObj.getHours()).padStart(2,'0')}:${String(tObj.getMinutes()).padStart(2,'0')}:${String(tObj.getSeconds()).padStart(2,'0')}`;
 
@@ -823,6 +829,7 @@ async function fetchSensor() {
       }
       sensorChart.update('none');
 
+      // 🟣 NTP 지연시간 차트 업데이트
       const clockOffsetSec = (clockOffset / 1000).toFixed(3);
       updateLatencyChart(timeLabel, correctedLatency, clockOffsetSec);
     }
@@ -832,6 +839,7 @@ async function fetchSensor() {
     log(`오류: ${e.message}`, 'err');
   }
 }
+// ──────────────────────────────────────────────────────────────────
 
 async function controlRelay(action) {
   const sid = slaveId('relay');
@@ -982,6 +990,7 @@ function updateLatencyChart(timeLabel, correctedLatency, clockOffsetSec) {
   }
   latencyChart.update('none');
 
+  // 현재값 표시 업데이트
   document.getElementById('latency-corrected-val').innerHTML =
     `${correctedLatency}<span class="latency-stat-unit">초</span>`;
   document.getElementById('latency-offset-val').innerHTML =
