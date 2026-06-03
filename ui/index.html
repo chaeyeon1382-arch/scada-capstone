@@ -134,7 +134,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 20px 22px; /* 위아래 패딩을 넓혀 영역 확장 */
+    padding: 22px 24px; /* 온습도 카드 영역을 시원하게 키우기 위해 패딩 확대 */
     position: relative;
     overflow: hidden;
     transition: border-color 0.3s;
@@ -164,7 +164,7 @@
 
   .card-value {
     font-family: var(--mono);
-    font-size: 86px; /* 온습도 숫자 크기 확대 (기존 72px) */
+    font-size: 86px; /* 폰트 크기를 기존 72px에서 86px로 확대 */
     font-weight: 400;
     line-height: 1;
     color: var(--accent);
@@ -180,7 +180,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 16px 20px; /* 패딩을 넓혀 카드 크기 확대 */
+    padding: 16px 20px; /* 팬 카드 영역 시원하게 키우기 위해 패딩 확대 */
     display: flex;
     align-items: center;
     gap: 20px;
@@ -208,25 +208,24 @@
 
   .fan-status {
     font-family: var(--mono);
-    font-size: 56px; /* ON/OFF 글자 크기 확대 (기존 48px) */
+    font-size: 56px; /* 글자 크기를 기존 48px에서 56px로 확대 */
     font-weight: 700;
     margin-bottom: 4px;
     transition: color 0.3s;
-    line-height: 1;
   }
 
   .fan-status.on { color: var(--accent2); }
   .fan-status.off { color: var(--muted); }
   .fan-slave { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
-  .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-group { display: flex; gap: 8px; margin-top: 8px; }
 
   .btn {
     font-family: var(--mono);
-    font-size: 15px; /* 버튼 텍스트 소폭 확대 */
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 1px;
-    padding: 10px 28px; /* 버튼 크기 확대 */
+    padding: 8px 24px;
     border-radius: 4px;
     border: 1px solid;
     cursor: pointer;
@@ -363,7 +362,7 @@
     padding: 14px 18px;
     position: relative;
     overflow: hidden;
-    flex: 1.5; /* 온습도/팬 크기를 키우면서 그래프 가시성도 확보할 수 있도록 1.5로 최적화 (기존 2) */
+    flex: 2;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -657,7 +656,6 @@ function closeAlert() {
 // ──────────────────────────────────────────────────────────────────
 
 // ── 슬랙 알림 ──────────────────────────────────────────────────────
-// Webhook URL은 config.js의 SLACK_WEBHOOK 에 넣어두세요
 let slackCooldown = {};
 
 async function sendSlack(msg, key) {
@@ -809,11 +807,9 @@ async function fetchSensor() {
     setConn(true, 'API 연결됨');
     log(`응답 OK ← temp:${temp}°C  hum:${hum}%`, 'ok');
 
-    // ★ 이상 감지 → 팝업 배너 + 슬랙 알림
     checkAlert(temp, hum);
 
-    // 슬라이딩 윈도우 그래프 업데이트
-    if (sensorChart && temp !== null && hum sentinel !== null) {
+    if (sensorChart && temp !== null && hum !== null) {
       const tObj = data.timestamp ? new Date(data.timestamp) : new Date();
       const timeLabel = `${String(tObj.getHours()).padStart(2,'0')}:${String(tObj.getMinutes()).padStart(2,'0')}:${String(tObj.getSeconds()).padStart(2,'0')}`;
 
@@ -829,7 +825,6 @@ async function fetchSensor() {
       }
       sensorChart.update('none');
 
-      // 🟣 NTP 지연시간 차트 업데이트
       const clockOffsetSec = (clockOffset / 1000).toFixed(3);
       updateLatencyChart(timeLabel, correctedLatency, clockOffsetSec);
     }
@@ -990,7 +985,6 @@ function updateLatencyChart(timeLabel, correctedLatency, clockOffsetSec) {
   }
   latencyChart.update('none');
 
-  // 현재값 표시 업데이트
   document.getElementById('latency-corrected-val').innerHTML =
     `${correctedLatency}<span class="latency-stat-unit">초</span>`;
   document.getElementById('latency-offset-val').innerHTML =
