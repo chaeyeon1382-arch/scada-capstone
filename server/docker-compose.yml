@@ -50,6 +50,8 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER}
       RABBITMQ_PASS: ${RABBITMQ_PASS}
+      # 🟢 요청하신 슬랙 웹훅 URL이 정상적으로 주입되었습니다.
+      SLACK_WEBHOOK_URL: https://hooks.slack.com/services/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
     depends_on:
       - rabbitmq
       - postgres
