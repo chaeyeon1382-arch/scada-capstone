@@ -759,9 +759,23 @@ async function fetchSensor() {
     const T2 = gwReceiveTime;
     const T3 = data.server_send_time ? data.server_send_time * 1000 : T2;
 
+    /*
     const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
     const rawLatency = T4 - T2;
     const correctedLatency = ((rawLatency - clockOffset) / 1000).toFixed(3);
+    */
+
+    // 1. 라즈베리파이와 노트북 간의 실시간 시계 오차(Clock Offset) 계산 (ms 단위)
+    const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
+
+    // 2. 부호 방향성이 완벽하게 보정된 순수 네트워크 지연시간 계산
+    //    (라파 도착 시간 - 노트북 출발 시간)에서 '시계 오차'를 빼주어야 순수 비행시간만 남습니다.
+    const rawLatency = (T2 - T1) - clockOffset;
+
+    // 3. 음수가 나오는 미세 오차 방지 및 초(s) 단위 변환 변수 (최종 출력용)
+    const correctedLatency = Math.max(0.001, rawLatency / 1000).toFixed(3);
+
+
 
     const formatMsToTime = (ms) => {
       const d = new Date(ms);

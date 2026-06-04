@@ -7,6 +7,17 @@ import paho.mqtt.client as mqtt
 import json
 import time
 from datetime import datetime
+import ntplib
+
+
+def get_ntp_time():
+    try:
+        c = ntplib.NTPClient()
+        response = c.request('time.google.com', version=3)
+        return response.tx_time
+    except:
+        return datetime.now().timestamp()
+
 
 class MQTTClientManager:
     def __init__(self, reader, host="34.47.100.119", port=1883):
@@ -89,7 +100,9 @@ class MQTTClientManager:
             "temperature": temp, 
             "humidity": hum,     
             "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            "received_at": datetime.now().timestamp(), # 초 단위 추가
+            "received_at": get_ntp_time(),
+            "t3": current_ms,
+            #"received_at": datetime.now().timestamp(), # 초 단위 추가
             "status": status
         }
         
