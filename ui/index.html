@@ -766,15 +766,14 @@ async function fetchSensor() {
     */
 
     // 1. 라즈베리파이와 노트북 간의 실시간 시계 오차(Clock Offset) 계산 (ms 단위)
-    const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
+const clockOffset = ((T2 - T1) + (T3 - T4)) / 2;
 
-    // 2. 부호 방향성이 완벽하게 보정된 순수 네트워크 지연시간 계산
-    //    (라파 도착 시간 - 노트북 출발 시간)에서 '시계 오차'를 빼주어야 순수 비행시간만 남습니다.
-    const rawLatency = (T2 - T1) - clockOffset;
+// 2. 변수명은 그대로 쓰되, 자바스크립트 소수점 연산 오차와 단위 꼬임을 방지하는 정석 공식
+//    전체 왕복 시간(T4 - T1)에서 서버 체류 시간(T3 - T2)을 뺀 순수 RTT의 절반(편도 지연)을 구합니다.
+const rawLatency = ((T4 - T1) - (T3 - T2)) / 2;
 
-    // 3. 음수가 나오는 미세 오차 방지 및 초(s) 단위 변환 변수 (최종 출력용)
-    const correctedLatency = Math.max(0.001, rawLatency / 1000).toFixed(3);
-
+// 3. 음수가 나오는 미세 오차 방지 및 초(s) 단위 변환 변수 (최종 출력용)
+const correctedLatency = Math.max(0.001, rawLatency / 1000).toFixed(3);
 
 
     const formatMsToTime = (ms) => {

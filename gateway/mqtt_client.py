@@ -94,6 +94,9 @@ class MQTTClientManager:
             print("⚠️ 연결 끊김: 전송을 건너뜁니다.")
             return
 
+
+        current_ms = int(get_ntp_time() * 1000)
+
         # main.py에서 넘겨받은 temp, hum 값을 실제 데이터로 사용합니다.
         payload = {
             "slave_id": slave_id,
